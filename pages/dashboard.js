@@ -1,95 +1,137 @@
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+"use client";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { useEffect, useState } from "react";
+import { Table } from "../components/ui/Table";
+import { Button } from "../components/ui/Button";
+import { Checkbox } from "../components/ui/Checkbox";
+import { Select } from "../components/ui/Select";
+
+import { RefreshCw, Filter, Trash, CheckSquare } from "lucide-react";
+import { useTheme } from "next-themes";
+import supabase from "../lib/supabaseClient";
 
 export default function Dashboard() {
   const [tickets, setTickets] = useState([]);
-  const [filter, setFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const [selectedTickets, setSelectedTickets] = useState([]);
+  const [searchParams, setSearchParams] = useState({
+    status: "All",
+    priority: "All",
+  });
+  const [refreshTimer, setRefreshTimer] = useState(300);
+  const { theme } = useTheme();
 
   useEffect(() => {
     fetchTickets();
-    const interval = setInterval(fetchTickets, 300000); // Auto-refresh every 5 minutes
+    const interval = setInterval(
+      () => setRefreshTimer((prev) => (prev > 0 ? prev - 1 : 300)),
+      1000
+    );
     return () => clearInterval(interval);
   }, []);
 
-  const fetchTickets = async () => {
-    let query = supabase
-      .from("tickets")
-      .select("*")
-      .order("created_at", { ascending: false });
+  useEffect(() => {
+    if (refreshTimer === 0) fetchTickets();
+  }, [refreshTimer]);
 
-    if (filter) query = query.eq("status", filter);
-    if (search) query = query.ilike("issue_id", `%${search}%`);
+  async function fetchTickets() {
+    let { data, error } = await supabase.from("tickets").select("*");
+    if (!error) setTickets(data);
+  }
 
-    const { data, error } = await query;
-    if (error) console.error("Error fetching tickets:", error);
-    else setTickets(data);
-  };
+  function handleSelect(ticketId) {
+    setSelectedTickets((prev) =>
+      prev.includes(ticketId)
+        ? prev.filter((id) => id !== ticketId)
+        : [...prev, ticketId]
+    );
+  }
+
+  function applyFilters(ticket) {
+    const { status, priority } = searchParams;
+    return (
+      (status === "All" || ticket.status === status) &&
+      (priority === "All" || ticket.priority === priority)
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto mt-10 p-6 bg-white shadow-md rounded-lg">
-      <h1 className="text-2xl font-bold mb-4">Support Ticket Dashboard</h1>
-
-      <div className="flex gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search by Issue ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border p-2 rounded w-1/2"
-        />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">All Statuses</option>
-          <option value="New Request">New Request</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Closed">Closed</option>
-        </select>
-        <button
-          onClick={fetchTickets}
-          className="bg-blue-500 text-white p-2 rounded"
-        >
-          Apply
-        </button>
+    <div className="p-4 max-w-6xl mx-auto">
+      {/* Header & Filters */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Fetch Ticket System</h1>
+        <div className="flex gap-2">
+          <Select
+            options={["All", "New", "Open", "Closed"]}
+            onChange={(e) =>
+              setSearchParams({ ...searchParams, status: e.target.value })
+            }
+          />
+          <Select
+            options={["All", "High", "Medium", "Low"]}
+            onChange={(e) =>
+              setSearchParams({ ...searchParams, priority: e.target.value })
+            }
+          />
+          <Button onClick={() => fetchTickets()}>
+            <RefreshCw className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
-      <table className="w-full border-collapse border border-gray-300">
+      {/* Ticket Table */}
+      <Table>
         <thead>
-          <tr className="bg-gray-200">
-            <th className="border p-2">Issue ID</th>
-            <th className="border p-2">Name</th>
-            <th className="border p-2">Status</th>
-            <th className="border p-2">Priority</th>
-            <th className="border p-2">Actions</th>
+          <tr className="bg-gray-100 dark:bg-gray-800">
+            <th>
+              <Checkbox />
+            </th>
+            <th>Issue ID</th>
+            <th>Tool ID</th>
+            <th>Order #</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Last Updated</th>
           </tr>
         </thead>
         <tbody>
-          {tickets.map((ticket) => (
-            <tr key={ticket.id} className="hover:bg-gray-100">
-              <td className="border p-2">{ticket.issue_id}</td>
-              <td className="border p-2">{ticket.name}</td>
-              <td className="border p-2">{ticket.status}</td>
-              <td className="border p-2">{ticket.priority}</td>
-              <td className="border p-2">
-                <a
-                  href={`/ticket/${ticket.id}`}
-                  className="text-blue-500 hover:underline"
-                >
-                  View
-                </a>
+          {tickets.filter(applyFilters).map((ticket) => (
+            <tr
+              key={ticket.id}
+              className="hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+            >
+              <td>
+                <Checkbox
+                  checked={selectedTickets.includes(ticket.id)}
+                  onChange={() => handleSelect(ticket.id)}
+                />
               </td>
+              <td>{ticket.issue_id}</td>
+              <td>{ticket.tool_id}</td>
+              <td>{ticket.order_number}</td>
+              <td>{ticket.title}</td>
+              <td>{ticket.status}</td>
+              <td>{ticket.priority}</td>
+              <td>{new Date(ticket.updated_at).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </Table>
+
+      {/* Footer */}
+      <div className="flex justify-between items-center mt-4">
+        <div>
+          <p className="text-gray-500">Auto-refresh in {refreshTimer} sec</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="destructive" disabled={selectedTickets.length === 0}>
+            <Trash className="w-5 h-5" />
+          </Button>
+          <Button variant="primary" disabled={selectedTickets.length === 0}>
+            <CheckSquare className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
