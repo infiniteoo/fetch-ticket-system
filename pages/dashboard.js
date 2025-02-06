@@ -1,4 +1,5 @@
 "use client";
+import { LuClipboard } from "react-icons/lu";
 
 import { useEffect, useState } from "react";
 import { Table } from "@/components/ui/Table";
@@ -17,6 +18,8 @@ import supabase from "@/lib/supabaseClient";
 
 export default function Dashboard() {
   const [tickets, setTickets] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [selectedTickets, setSelectedTickets] = useState([]);
   const [searchParams, setSearchParams] = useState({
     status: "All",
@@ -28,6 +31,15 @@ export default function Dashboard() {
   const [newComment, setNewComment] = useState("");
   const [updatedStatus, setUpdatedStatus] = useState("");
   const [updatedPriority, setUpdatedPriority] = useState("");
+  const [copiedField, setCopiedField] = useState(null);
+
+  const copyToClipboard = (label, value) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(label); // Show feedback for this field
+
+    // Reset copied state after 2 seconds
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const { theme } = useTheme();
 
@@ -47,8 +59,10 @@ export default function Dashboard() {
   async function fetchComments(ticketId) {
     let { data, error } = await supabase
       .from("comments")
-      .select("*")
-      .eq("ticket_id", ticketId);
+      .select("text, created_at, commenter_name")
+      .eq("ticket_id", ticketId)
+      .order("created_at", { ascending: false }); // Newest first
+
     if (!error) setComments(data);
   }
 
@@ -140,19 +154,43 @@ export default function Dashboard() {
   async function addComment() {
     if (!newComment.trim() || !selectedTicket) return;
 
-    const { error } = await supabase.from("comments").insert({
+    const commenterName = "Customer Service Rep"; // Adjust dynamically if needed
+
+    const { error: commentError } = await supabase.from("comments").insert({
       ticket_id: selectedTicket.id,
       text: newComment,
+      commenter_name: commenterName,
       created_at: new Date().toISOString(),
     });
 
-    if (!error) {
-      setComments([
-        ...comments,
-        { text: newComment, created_at: new Date().toISOString() },
-      ]);
-      setNewComment("");
+    if (commentError) {
+      console.error("Error adding comment:", commentError);
+      return;
     }
+
+    // Update the ticket's last updated timestamp
+    const { error: ticketError } = await supabase
+      .from("tickets")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", selectedTicket.id);
+
+    if (ticketError) {
+      console.error("Error updating ticket timestamp:", ticketError);
+    } else {
+      fetchTickets(); // Refresh tickets list
+    }
+
+    // Add the new comment at the **beginning** of the list
+    setComments([
+      {
+        text: newComment,
+        commenter_name: commenterName,
+        created_at: new Date().toISOString(),
+      },
+      ...comments, // Spread the existing comments after the new one
+    ]);
+
+    setNewComment("");
   }
 
   async function fetchTickets() {
@@ -172,6 +210,7 @@ export default function Dashboard() {
       .update({
         status: updatedStatus,
         priority: updatedPriority,
+        updated_at: new Date().toLocaleString(),
       })
       .eq("id", selectedTicket.id);
 
@@ -202,6 +241,16 @@ export default function Dashboard() {
               setSearchParams({ ...searchParams, priority: e.target.value })
             }
           />
+
+          {/* Search Input */}
+          <input
+            type="text"
+            placeholder="Filter tickets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="border px-3 py-2 rounded-lg text-black"
+          />
+
           <Button onClick={fetchTickets}>
             <RefreshCw className="w-5 h-5 mr-2" />
           </Button>
@@ -222,38 +271,43 @@ export default function Dashboard() {
           </tr>
         </thead>
         <tbody>
-          {tickets.map((ticket) => (
-            <tr
-              key={ticket.id}
-              className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-              onClick={() => openTicketDetails(ticket)}
-            >
-              {/*   <td className="p-3 text-center">
-                <Checkbox
-                  checked={selectedTickets.includes(ticket.id)}
-                  onChange={() => handleSelect(ticket.id)}
-                />
-              </td> */}
-              <td className="p-3">{ticket.issue_id}</td>
-              <td className="p-3">{ticket.tool_id}</td>
-              <td className="p-3">{ticket.wiings_order}</td>
-              <td className="p-3">{ticket.problem_statement}</td>
-
-              <td className="p-3">
-                <span className={getStatusClass(ticket.status)}>
-                  {ticket.status}
-                </span>
-              </td>
-              <td className="p-3">
-                <span className={getPriorityClass(ticket.priority)}>
-                  {ticket.priority}
-                </span>
-              </td>
-              <td className="p-3">
-                {new Date(ticket.created_at).toLocaleString()}
-              </td>
-            </tr>
-          ))}
+          {tickets
+            .filter((ticket) =>
+              searchQuery
+                ? Object.values(ticket).some((value) =>
+                    String(value)
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase())
+                  )
+                : true
+            )
+            .map((ticket) => (
+              <tr
+                key={ticket.id}
+                className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                onClick={() => openTicketDetails(ticket)}
+              >
+                <td className="p-3">{ticket.issue_id}</td>
+                <td className="p-3">{ticket.tool_id}</td>
+                <td className="p-3">{ticket.wiings_order}</td>
+                <td className="p-3">{ticket.problem_statement}</td>
+                <td className="p-3">
+                  <span className={getStatusClass(ticket.status)}>
+                    {ticket.status}
+                  </span>
+                </td>
+                <td className="p-3">
+                  <span className={getPriorityClass(ticket.priority)}>
+                    {ticket.priority}
+                  </span>
+                </td>
+                <td className="p-3">
+                  {ticket.updated_at
+                    ? new Date(ticket.updated_at).toLocaleString()
+                    : new Date(ticket.created_at).toLocaleString()}
+                </td>
+              </tr>
+            ))}
         </tbody>
       </Table>
 
@@ -264,29 +318,81 @@ export default function Dashboard() {
           onClick={closeTicketDetails}
         >
           <div
-            className="bg-white dark:bg-gray-800 p-10 rounded-lg shadow-lg max-w-6xl w-3/4 min-h-[600px] flex gap-8"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-gray-800 p-10 rounded-lg shadow-lg max-w-6xl w-3/4 min-h-[600px] max-h-[600px] flex gap-8 relative"
+            onClick={(e) => e.stopPropagation()} // Prevents closing when clicking inside
           >
-            {/* Left Side: Ticket Details */}
-            <div className="w-1/2">
-              <h2 className="text-3xl font-bold mb-6">Ticket Details</h2>
-              <p className="text-lg mb-4">
-                <strong>Issue ID:</strong> {selectedTicket.issue_id}
-              </p>
-              <p className="text-lg mb-4">
-                <strong>Tool ID:</strong> {selectedTicket.tool_id}
-              </p>
-              <p className="text-lg mb-4">
-                <strong>Order #:</strong> {selectedTicket.order_number}
-              </p>
-              <p className="text-lg mb-4">
-                <strong>Title:</strong> {selectedTicket.title}
-              </p>
-              {/* Status Dropdown */}
-              <p className="text-lg mb-4">
-                <strong>Status:</strong>{" "}
+            {/* Close Button */}
+            <button
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 text-2xl"
+              onClick={closeTicketDetails}
+            >
+              ✖
+            </button>
+
+            {/* Left Side: Ticket Details (Styled) */}
+            <div className="w-1/2 flex flex-col">
+              <h2 className="text-2xl font-bold mb-4">
+                {selectedTicket.issue_id}, {selectedTicket.name}
+              </h2>
+
+              {/* Ticket Information */}
+              <div className="flex flex-col bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[400px] overflow-y-auto">
+                {[
+                  {
+                    label: "Problem Statement",
+                    value: selectedTicket.problem_statement,
+                  },
+                  { label: "Tool ID", value: selectedTicket.tool_id },
+                  { label: "Wiings Order", value: selectedTicket.wiings_order },
+                  { label: "IPN", value: selectedTicket.part_number },
+                  {
+                    label: "Fab Submitted As",
+                    value: selectedTicket.fab_submitted_as,
+                  },
+                  { label: "Area", value: selectedTicket.area },
+                  { label: "Supplier", value: selectedTicket.supplier },
+                  { label: "SPN", value: selectedTicket.wiings_order },
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 mb-2 rounded-lg ${
+                      index % 2 === 0 ? "bg-gray-200" : "bg-gray-300"
+                    }`}
+                  >
+                    {/* Label (Bold) */}
+                    <p className="text-sm text-gray-600 font-semibold">
+                      {item.label}:
+                    </p>
+                    <div className="flex flex-row justify-between">
+                      {/* Value (Bigger, More Readable) */}
+                      <p className="text-lg font-medium text-black">
+                        {item.value}
+                      </p>
+                      {/* Copy Icon */}
+                      <button
+                        onClick={() => copyToClipboard(item.label, item.value)}
+                        className="ml-3 text-gray-600 hover:text-black"
+                        title="Copy to Clipboard"
+                      >
+                        {copiedField === item.label ? (
+                          "✅"
+                        ) : (
+                          <LuClipboard size={20} />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Divider */}
+                    {index < 5 && <hr className="mt-2 border-gray-400" />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Status & Priority Dropdowns */}
+              <div className="mt-4">
+                <p className="text-md font-bold mb-2">Update Status:</p>
                 <select
-                  className="border p-2 rounded text-black"
+                  className="border p-2 rounded w-full text-black"
                   value={updatedStatus}
                   onChange={(e) => setUpdatedStatus(e.target.value)}
                 >
@@ -323,13 +429,12 @@ export default function Dashboard() {
                     </option>
                   ))}
                 </select>
-              </p>
+              </div>
 
-              {/* Priority Dropdown */}
-              <p className="text-lg mb-4">
-                <strong>Priority:</strong>{" "}
+              <div className="mt-4">
+                <p className="text-md font-bold mb-2">Update Priority:</p>
                 <select
-                  className="border p-2 rounded text-black"
+                  className="border p-2 rounded w-full text-black"
                   value={updatedPriority}
                   onChange={(e) => setUpdatedPriority(e.target.value)}
                 >
@@ -341,50 +446,71 @@ export default function Dashboard() {
                     )
                   )}
                 </select>
-              </p>
-              <Button variant="primary" onClick={updateTicket} className="mt-4">
-                Update Ticket
-              </Button>
+              </div>
+
+              {/* Update Ticket Button */}
+              <div className="flex justify-end mt-4">
+                <Button variant="primary" onClick={updateTicket}>
+                  Update Ticket
+                </Button>
+              </div>
             </div>
 
             {/* Right Side: Comments Section */}
             <div className="w-1/2 flex flex-col">
               <h3 className="text-2xl font-bold mb-4">Comments</h3>
-              <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[200px]">
+
+              {/* Comment Thread (Scrollable) */}
+              <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[400px]">
                 {comments.length > 0 ? (
                   comments.map((comment, index) => (
-                    <p key={index} className="text-black mb-2">
-                      <strong>
-                        {new Date(comment.created_at).toLocaleString()}:
-                      </strong>{" "}
-                      {comment.text}
-                    </p>
+                    <div
+                      key={index}
+                      className={`p-3 mb-2 rounded-lg ${
+                        index % 2 === 0 ? "bg-gray-200" : "bg-gray-300"
+                      }`}
+                    >
+                      {/* Commenter Name & Date */}
+                      <p className="text-sm text-gray-600 font-semibold">
+                        {comment.commenter_name || "Unknown"} -{" "}
+                        {new Date(comment.created_at).toLocaleString()}
+                      </p>
+
+                      {/* Comment Text */}
+                      <p className="text-black mt-1">{comment.text}</p>
+
+                      {/* Divider */}
+                      {index < comments.length - 1 && (
+                        <hr className="mt-2 border-gray-400" />
+                      )}
+                    </div>
                   ))
                 ) : (
                   <p className="text-black">No comments yet</p>
                 )}
               </div>
 
-              {/* Comment Input */}
+              {/* Comment Input Box */}
               <div className="mt-4">
                 <textarea
-                  className="w-full p-3 border rounded text-black min-h-[120px]"
+                  className="w-full p-3 border rounded text-black min-h-[100px]"
                   placeholder="Add a comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 ></textarea>
               </div>
 
-              {/* Comment Actions */}
+              {/* Comment Submit Button (RESTORED ✅) */}
               <div className="flex justify-end mt-4">
                 <Button variant="primary" onClick={addComment}>
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                  <MessageCircle className="w-5 h-5" />
                 </Button>
               </div>
             </div>
           </div>
         </div>
       )}
+
       {/* Footer */}
       <div className="flex justify-between items-center mt-4">
         <div className="flex items-center">
