@@ -70,59 +70,59 @@ export default function Dashboard() {
   function getStatusClass(status) {
     switch (status) {
       case "In Progress":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "New Request":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "OM Escalated":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting 3PL":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Canceled by User":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Customer":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Elevator Repair":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Chemicals":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting on IT":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Tool Move":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Exceptions/Variants":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Count n Verify":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Delivery Confirmation":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Distribution":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Inbound":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting IMO":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Inv Control":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Put-away":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Returns":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Shipping":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Si":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting Stores":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Waiting eParts":
-        return "bg-green-500 text-white rounded-lg px-2 py-1";
+        return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "Re-Opened":
-        return "bg-yellow-500 text-black rounded-lg px-2 py-1";
+        return "bg-yellow-500 text-black rounded-lg px-5 py-1";
       case "Closed":
-        return "bg-red-500 text-white rounded-lg px-2 py-1";
+        return "bg-red-500 text-white rounded-lg px-5 py-1";
       case "Waiting Buyer/Supplier":
-        return "bg-red-500 animate-pulse text-white rounded-lg px-2 py-1";
+        return "bg-red-500 animate-pulse text-white rounded-lg px-5 py-1";
       default:
-        return "bg-gray-300 text-black rounded-lg px-2 py-1";
+        return "bg-gray-300 text-black rounded-lg px-5 py-1";
     }
   }
 
@@ -186,7 +186,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Fetch Ticket System</h1>
+        <h1 className="text-2xl font-bold">Fetch Ticket System 🎟️</h1>
         <div className="flex gap-2 text-black">
           <Select
             className="text-black"
@@ -225,7 +225,7 @@ export default function Dashboard() {
           {tickets.map((ticket) => (
             <tr
               key={ticket.id}
-              className="border-t hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
               onClick={() => openTicketDetails(ticket)}
             >
               {/*   <td className="p-3 text-center">
@@ -250,7 +250,7 @@ export default function Dashboard() {
                 </span>
               </td>
               <td className="p-3">
-                {new Date(ticket.updated_at).toLocaleString()}
+                {new Date(ticket.created_at).toLocaleString()}
               </td>
             </tr>
           ))}
@@ -293,9 +293,30 @@ export default function Dashboard() {
                   {[
                     "New Request",
                     "In Progress",
+                    "OM Escalated",
+                    "Waiting 3PL",
                     "Closed",
-                    "Waiting Buyer/Supplier",
+                    "Canceled By User",
                     "Re-Opened",
+                    "Waiting Buyer/Supplier",
+                    "Waiting Customer",
+                    "Waiting Elevator Repair",
+                    "Waiting on IT",
+                    "Waiting Tool Move",
+                    "Exceptions / Variants",
+                    "Waiting Chemicals",
+                    "Waiting Count/Verify",
+                    "Waiting Delivery Confirmation",
+                    "Waiting Distribution",
+                    "Waiting ePart",
+                    "Waiting Inbound",
+                    "Waiting IMO",
+                    "Waiting Inv Control",
+                    "Waiting Put-away",
+                    "Waiting Returns",
+                    "Waiting Shipping",
+                    "Waiting Si",
+                    "Waiting Stores",
                   ].map((status) => (
                     <option key={status} value={status}>
                       {status}
@@ -312,7 +333,7 @@ export default function Dashboard() {
                   value={updatedPriority}
                   onChange={(e) => setUpdatedPriority(e.target.value)}
                 >
-                  {["High", "Medium", "Low", "Factory Constraint"].map(
+                  {["High", "Low", "Medium", "Factory Constraint"].map(
                     (priority) => (
                       <option key={priority} value={priority}>
                         {priority}
