@@ -29,6 +29,11 @@ export default function Dashboard() {
   });
   const [refreshTimer, setRefreshTimer] = useState(300);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showClosePopup, setShowClosePopup] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
+  const [closeSubReason, setCloseSubReason] = useState("");
+  const [closeMessage, setCloseMessage] = useState("");
+
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [updatedStatus, setUpdatedStatus] = useState("");
@@ -41,6 +46,31 @@ export default function Dashboard() {
     if (file) {
       setSelectedImage(file);
       setImagePreview(URL.createObjectURL(file)); // Show preview before upload
+    }
+  }
+
+  async function handleCloseTicket() {
+    if (!selectedTicket) return;
+
+    const { error } = await supabase
+      .from("tickets")
+      .update({
+        status: "Closed",
+        closed_reason: closeReason,
+        closed_subreason: closeSubReason,
+        closed_message: closeMessage,
+        updated_at: new Date().toISOString(), // Update timestamp
+      })
+      .eq("id", selectedTicket.id);
+
+    if (!error) {
+      alert("Ticket closed successfully!");
+      fetchTickets(); // Refresh tickets
+      setShowClosePopup(false); // Close popup
+      closeTicketDetails(); // Close details view
+    } else {
+      console.error("Error closing ticket:", error);
+      alert("Error closing ticket. Please try again.");
     }
   }
 
@@ -506,7 +536,15 @@ export default function Dashboard() {
                 <select
                   className="border p-2 rounded w-full text-black"
                   value={updatedStatus}
-                  onChange={(e) => setUpdatedStatus(e.target.value)}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    setUpdatedStatus(newStatus);
+
+                    // Open close ticket popup if "Closed" is selected
+                    if (newStatus === "Closed") {
+                      setShowClosePopup(true);
+                    }
+                  }}
                 >
                   {[
                     "New Request",
@@ -661,6 +699,61 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {showClosePopup && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-1/3">
+            <h2 className="text-xl font-bold mb-4 text-black">Close Ticket</h2>
+
+            {/* Reason Dropdown */}
+            <label className="text-black font-semibold">Reason</label>
+            <select
+              className="border p-2 rounded w-full text-black mb-3"
+              value={closeReason}
+              onChange={(e) => setCloseReason(e.target.value)}
+            >
+              <option value="">Select a reason</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Duplicate">Duplicate</option>
+              <option value="Customer Canceled">Customer Canceled</option>
+              <option value="Invalid Request">Invalid Request</option>
+              <option value="Other">Other</option>
+            </select>
+
+            {/* Sub-Reason Dropdown */}
+            <label className="text-black font-semibold">Sub-Reason</label>
+            <select
+              className="border p-2 rounded w-full text-black mb-3"
+              value={closeSubReason}
+              onChange={(e) => setCloseSubReason(e.target.value)}
+            >
+              <option value="">Select a sub-reason</option>
+              <option value="Issue Fixed">Issue Fixed</option>
+              <option value="Customer No Response">Customer No Response</option>
+              <option value="Wrong Ticket">Wrong Ticket</option>
+              <option value="Other">Other</option>
+            </select>
+
+            {/* Additional Message */}
+            <label className="text-black font-semibold">Additional Notes</label>
+            <textarea
+              className="w-full p-2 border rounded text-black min-h-[100px] mb-4"
+              placeholder="Provide more details..."
+              value={closeMessage}
+              onChange={(e) => setCloseMessage(e.target.value)}
+            ></textarea>
+
+            {/* Submit & Cancel Buttons */}
+            <div className="flex justify-end gap-3">
+              <Button onClick={() => setShowClosePopup(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleCloseTicket}>
+                Close Ticket
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enlarged Image Popup */}
       {enlargedImage && (
         <div
