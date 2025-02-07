@@ -389,7 +389,11 @@ export default function Dashboard() {
                     <td className="p-3">{ticket.name}</td>
                     <td className="p-3">{ticket.wiings_order}</td>
                     <td className="p-3">{ticket.tool_id}</td>
-                    <td className="p-3">{ticket.problem_statement}</td>
+                    <td className="p-3">
+                      {ticket.problem_statement.length > 20
+                        ? ticket.problem_statement.substring(0, 20) + "..."
+                        : ticket.problem_statement}
+                    </td>
                     <td className="p-3">
                       <span className={getStatusClass(ticket.status)}>
                         {ticket.status}
