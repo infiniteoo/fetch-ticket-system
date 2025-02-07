@@ -103,7 +103,7 @@ export default function SubmitTicket() {
     // Update ticket's last updated time
     const { error: updateError } = await supabase
       .from("tickets")
-      .update({ updated_at: localTimestamp })
+      .update({ updated_at: utcTimestamp })
       .eq("id", form.id);
 
     if (updateError) {
@@ -243,61 +243,12 @@ export default function SubmitTicket() {
     fetchComments(data.id);
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    console.log("Updating ticket:", form);
+  const sendUpdateEmail = async (commentText) => {
+    if (!commentText.trim()) return; // Skip if no changes
 
-    const { error } = await supabase
-      .from("tickets")
-      .update({
-        name: form.name,
-        problem_statement: form.problem_statement,
-        priority: form.priority,
-        fab_submitted_as: form.fab_submitted_as,
-        tool_id: form.tool_id,
-        wiings_order: form.wiings_order,
-        part_number: form.part_number,
-        status: form.status,
-        area: form.area,
-        supplier: form.supplier,
-        email: form.email,
-        updated_at: new Date().toLocaleString(), // ✅ Store in UTC
-      })
-      .eq("id", form.id); // Ensure correct ticket is updated
-
-    if (error) {
-      console.error("Error updating ticket:", error);
-      alert("Error updating ticket");
-    } else {
-      // send an email to the user with the updated ticket details
-      // get comments for ticket if they exist
-      await fetchComments(form.id);
-      console.log("form", form);
-      console.log("form id", form.id);
-
-      console.log("comments", comments);
-      let commentSection = [];
-      // check to se if comments has any data
-      if (comments) {
-        commentSection = comments
-          .map(
-            (c) => `
-        <tr>
-          <td>${c.commenter_name || "Unknown"}</td>
-          <td>${c.text || "No comment text"}</td>
-          <td>${new Date(c.created_at).toLocaleString()}</td>
-        </tr>
-      `
-          )
-          .join("");
-      } else {
-        commentSection = `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
-      }
-
-      // Construct email HTML
-      const emailHtml = `
+    const emailHtml = `
       <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Confirmation</h2>
+        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
         <p>Hi <strong>${form.name}</strong>,</p>
         <p>Your support ticket has been updated. Below are the details:</p>
         <hr>
@@ -308,60 +259,91 @@ export default function SubmitTicket() {
         <p><strong>Tool ID:</strong> ${form.tool_id}</p>
         <p><strong>Area:</strong> ${form.area}</p>
         <p><strong>Supplier:</strong> ${form.supplier}</p>
-         <h3>Comments</h3>
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:#0073e6;color:white;">
-                <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-                <th style="padding:10px;border:1px solid #ddd;">Message</th>
-                <th style="padding:10px;border:1px solid #ddd;">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${commentSection}
-            </tbody>
-          </table>
+        <h3>📝 Changes Made</h3>
+        <p>${commentText}</p>
         <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;
 
-      // Send email via API route
-      const emailResponse = await fetch("/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: form.email,
-          subject: `Your Support Ticket (#${form.issue_id}) - Fetch Ticket System *Updated*`,
-          html: emailHtml,
-        }),
-      });
+    const emailResponse = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: form.email,
+        subject: `Your Support Ticket (#${form.issue_id}) - Fetch Ticket System *Updated*`,
+        html: emailHtml,
+      }),
+    });
 
-      const emailResult = await emailResponse.json();
-      console.log("📨 Email Result:", emailResult);
+    const emailResult = await emailResponse.json();
+    console.log("📨 Email Result:", emailResult);
 
-      if (!emailResult.success) {
-        console.error("❌ Email sending failed:", emailResult.error);
+    if (!emailResult.success) {
+      console.error("❌ Email sending failed:", emailResult.error);
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    console.log("Updating ticket:", form);
+
+    let commentText = "";
+    const commenterName = form.name || "Anonymous";
+    const localTimestamp = new Date().toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+    });
+
+    // Fetch current ticket from Supabase to compare values
+    const { data: currentTicket, error: fetchError } = await supabase
+      .from("tickets")
+      .select()
+      .eq("id", form.id)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching ticket before update:", fetchError);
+      alert("Error updating ticket");
+      return;
+    }
+
+    // Compare each field and add comments for changes
+    Object.keys(form).forEach((key) => {
+      if (form[key] !== currentTicket[key]) {
+        commentText += `${key.replace(/_/g, " ")} updated to "${form[key]}". `;
       }
+    });
 
-      alert("Ticket updated successfully!");
-      setIsExistingTicketLoaded(false);
-      setComments([]);
-      setForm({
-        name: "",
-        problem_statement: "",
-        priority: "Not Assigned",
-        fab_submitted_as: "",
-        tool_id: "",
-        wiings_order: "",
-        part_number: "",
-        status: "New Request",
-        area: "Buyer/Planner",
-        supplier: "AMAT",
-        email: "",
+    // Insert a comment if any changes were detected
+    if (commentText) {
+      const { error: commentError } = await supabase.from("comments").insert({
+        ticket_id: form.id,
+        text: commentText.trim(),
+        commenter_name: commenterName,
+        created_at: localTimestamp,
       });
+
+      if (commentError) {
+        console.error("Error adding comment for field changes:", commentError);
+      }
+    }
+
+    // Update the ticket
+    const { error: updateError } = await supabase
+      .from("tickets")
+      .update({
+        ...form,
+        updated_at: localTimestamp,
+      })
+      .eq("id", form.id);
+
+    if (updateError) {
+      console.error("Error updating ticket:", updateError);
+      alert("Error updating ticket");
+    } else {
+      await fetchComments(form.id); // Refresh comments
+      await sendUpdateEmail(commentText); // Send an email with the changes
+      alert("Ticket updated successfully!");
     }
   };
 
@@ -717,7 +699,7 @@ export default function SubmitTicket() {
             <h3 className="text-2xl font-bold mb-4">Comments</h3>
 
             {/* Comment Thread (Scrollable) */}
-            <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[250px]">
+            <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[250px] max-w-[400px]">
               {comments.length > 0 ? (
                 comments.map((comment, index) => (
                   <div
@@ -812,6 +794,22 @@ export default function SubmitTicket() {
                     />
                   </div>
                 )}
+              </div>
+            </div>
+            <div className="flex flex-row justify-between mt-4">
+              <div></div>
+
+              <div className="">
+                <a
+                  href="https://teams.live.com/l/invite/FBAqqdXZ83gf2rkvQI"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src="./microsoft-teams.png"
+                    className="w-[40px] h-[40px]"
+                  ></img>
+                </a>
               </div>
             </div>
           </div>
