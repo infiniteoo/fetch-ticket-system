@@ -19,11 +19,13 @@ import supabase from "@/lib/supabaseClient";
 export default function Dashboard() {
   const [tickets, setTickets] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null); // Stores the selected file
+  const [imagePreview, setImagePreview] = useState(null); // Preview before upload
+  const [enlargedImage, setEnlargedImage] = useState(null); // Image for popup
 
   const [selectedTickets, setSelectedTickets] = useState([]);
   const [searchParams, setSearchParams] = useState({
     status: "All",
-    priority: "All",
   });
   const [refreshTimer, setRefreshTimer] = useState(300);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -32,6 +34,39 @@ export default function Dashboard() {
   const [updatedStatus, setUpdatedStatus] = useState("");
   const [updatedPriority, setUpdatedPriority] = useState("");
   const [copiedField, setCopiedField] = useState(null);
+
+  // Handle image selection
+  function handleImageChange(event) {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file)); // Show preview before upload
+    }
+  }
+
+  // Upload image to Supabase Storage & return URL
+  async function uploadImage(file) {
+    if (!file) return null;
+
+    const fileName = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage
+      .from("ticket-uploads")
+      .upload(fileName, file);
+
+    console.log("Upload Response Data:", data); // 🔍 Check the returned data
+    console.log("Upload Error:", error); // 🔍 Check if there’s an error
+
+    if (error) {
+      console.error("Error uploading image:", error);
+      return null;
+    }
+
+    // Manually construct the public URL
+    const bucketUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/ticket-uploads/${data.path}`;
+    console.log("Manually Constructed URL:", bucketUrl); // ✅ Should log a valid image URL
+
+    return bucketUrl;
+  }
 
   const copyToClipboard = (label, value) => {
     navigator.clipboard.writeText(value);
@@ -42,6 +77,23 @@ export default function Dashboard() {
   };
 
   const { theme } = useTheme();
+
+  // Handle Escape Key to Close Popup
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeTicketDetails();
+      }
+    };
+
+    // Attach event listener
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Cleanup event listener when component unmounts
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     fetchTickets();
@@ -59,11 +111,52 @@ export default function Dashboard() {
   async function fetchComments(ticketId) {
     let { data, error } = await supabase
       .from("comments")
-      .select("text, created_at, commenter_name")
+      .select("text, created_at, commenter_name, image_url") // ✅ Include image_url
       .eq("ticket_id", ticketId)
       .order("created_at", { ascending: false }); // Newest first
 
-    if (!error) setComments(data);
+    if (!error) {
+      setComments(data);
+    } else {
+      console.error("Error fetching comments:", error);
+    }
+  }
+
+  // Function to filter tickets based on dropdown selection
+  function getFilteredTickets() {
+    return tickets
+      .filter((ticket) => {
+        // Dropdown filtering (Status)
+        if (searchParams.status === "All") return true;
+        if (searchParams.status === "New")
+          return ticket.status === "New Request";
+        if (searchParams.status === "Open")
+          return (
+            ticket.status !== "Closed" && ticket.status !== "Canceled by User"
+          );
+        if (searchParams.status === "Closed") return ticket.status === "Closed";
+        return true;
+      })
+      .filter((ticket) => {
+        // Search Box Filtering (Filters across multiple fields)
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          ticket.issue_id.toLowerCase().includes(query) ||
+          ticket.tool_id.toLowerCase().includes(query) ||
+          ticket.wiings_order.toLowerCase().includes(query) ||
+          ticket.problem_statement.toLowerCase().includes(query) ||
+          ticket.status.toLowerCase().includes(query) ||
+          ticket.priority.toLowerCase().includes(query)
+        );
+      });
+  }
+
+  function resetFilteredTickets() {
+    return tickets.filter((ticket) => {
+      setSearchParams("All");
+      if (searchParams.status === "All") return true;
+    });
   }
 
   function getPriorityClass(priority) {
@@ -151,16 +244,28 @@ export default function Dashboard() {
     setSelectedTicket(null);
   }
 
+  // Add comment (handles both text & image)
   async function addComment() {
-    if (!newComment.trim() || !selectedTicket) return;
+    if (!newComment.trim() && !selectedImage) return;
 
-    const commenterName = "Customer Service Rep"; // Adjust dynamically if needed
+    const commenterName = "Customer Service Rep";
+    let imageUrl = null;
 
+    if (selectedImage) {
+      imageUrl = await uploadImage(selectedImage);
+    }
+
+    const localTimestamp = new Date().toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+    });
+
+    // Insert comment
     const { error: commentError } = await supabase.from("comments").insert({
       ticket_id: selectedTicket.id,
       text: newComment,
       commenter_name: commenterName,
-      created_at: new Date().toISOString(),
+      image_url: imageUrl,
+      created_at: localTimestamp, // ✅ Store local timestamp
     });
 
     if (commentError) {
@@ -168,29 +273,24 @@ export default function Dashboard() {
       return;
     }
 
-    // Update the ticket's last updated timestamp
-    const { error: ticketError } = await supabase
+    // Update the ticket's last updated time
+    const { error: updateError } = await supabase
       .from("tickets")
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        updated_at: localTimestamp, // ✅ Update ticket last updated time
+      })
       .eq("id", selectedTicket.id);
 
-    if (ticketError) {
-      console.error("Error updating ticket timestamp:", ticketError);
-    } else {
-      fetchTickets(); // Refresh tickets list
+    if (updateError) {
+      console.error("Error updating ticket timestamp:", updateError);
     }
 
-    // Add the new comment at the **beginning** of the list
-    setComments([
-      {
-        text: newComment,
-        commenter_name: commenterName,
-        created_at: new Date().toISOString(),
-      },
-      ...comments, // Spread the existing comments after the new one
-    ]);
+    fetchComments(selectedTicket.id);
+    fetchTickets(); // Refresh ticket list
 
     setNewComment("");
+    setSelectedImage(null);
+    setImagePreview(null);
   }
 
   async function fetchTickets() {
@@ -200,6 +300,16 @@ export default function Dashboard() {
     } else {
       console.error("Error fetching tickets:", error);
     }
+  }
+
+  useEffect(() => {
+    console.log("Updated searchParams.status:", searchParams.status);
+  }, [searchParams]);
+
+  function resetHeader() {
+    setSearchQuery(""); // Reset search input
+
+    fetchTickets(); // Refresh the ticket list
   }
 
   async function updateTicket() {
@@ -230,16 +340,10 @@ export default function Dashboard() {
           <Select
             className="text-black"
             options={["All", "New", "Open", "Closed"]}
+            value={searchParams.status} // ✅ Now properly controlled
             onChange={(e) =>
-              setSearchParams({ ...searchParams, status: e.target.value })
-            }
-          />
-          <Select
-            className="text-black"
-            options={["All", "High", "Medium", "Low"]}
-            onChange={(e) =>
-              setSearchParams({ ...searchParams, priority: e.target.value })
-            }
+              setSearchParams((prev) => ({ ...prev, status: e.target.value }))
+            } // ✅ Updates correctly
           />
 
           {/* Search Input */}
@@ -251,65 +355,69 @@ export default function Dashboard() {
             className="border px-3 py-2 rounded-lg text-black"
           />
 
-          <Button onClick={fetchTickets}>
+          <Button onClick={resetHeader}>
             <RefreshCw className="w-5 h-5 mr-2" />
           </Button>
         </div>
       </div>
 
-      <Table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100 dark:bg-gray-800 text-left">
-            {/* <th className="p-3">Select</th> */}
-            <th className="p-3">Issue ID</th>
-            <th className="p-3">Tool ID</th>
-            <th className="p-3">Order #</th>
-            <th className="p-3">Title</th>
-            <th className="p-3">Status</th>
-            <th className="p-3">Priority</th>
-            <th className="p-3">Last Updated</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tickets
-            .filter((ticket) =>
-              searchQuery
-                ? Object.values(ticket).some((value) =>
-                    String(value)
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  )
-                : true
-            )
-            .map((ticket) => (
-              <tr
-                key={ticket.id}
-                className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-                onClick={() => openTicketDetails(ticket)}
-              >
-                <td className="p-3">{ticket.issue_id}</td>
-                <td className="p-3">{ticket.tool_id}</td>
-                <td className="p-3">{ticket.wiings_order}</td>
-                <td className="p-3">{ticket.problem_statement}</td>
-                <td className="p-3">
-                  <span className={getStatusClass(ticket.status)}>
-                    {ticket.status}
-                  </span>
-                </td>
-                <td className="p-3">
-                  <span className={getPriorityClass(ticket.priority)}>
-                    {ticket.priority}
-                  </span>
-                </td>
-                <td className="p-3">
-                  {ticket.updated_at
-                    ? new Date(ticket.updated_at).toLocaleString()
-                    : new Date(ticket.created_at).toLocaleString()}
-                </td>
+      {/* Ticket Queue (Fixed Size with Scroll) */}
+      <div className="border rounded-lg p-4 shadow-lg max-w-full">
+        <div className="overflow-y-auto min-h-[400px] max-h-[600px]">
+          <Table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100 dark:bg-gray-800 text-left">
+                <th className="p-3">Issue ID</th>
+                <th className="p-3">Name</th>
+                <th className="p-3">Order #</th>
+                <th className="p-3">Tool ID</th>
+                <th className="p-3">Statement</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">Priority</th>
+                <th className="p-3">Last Updated</th>
               </tr>
-            ))}
-        </tbody>
-      </Table>
+            </thead>
+            <tbody>
+              {getFilteredTickets().length > 0 ? (
+                getFilteredTickets().map((ticket) => (
+                  <tr
+                    key={ticket.id}
+                    className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openTicketDetails(ticket)}
+                  >
+                    <td className="p-3">{ticket.issue_id}</td>
+                    <td className="p-3">{ticket.name}</td>
+                    <td className="p-3">{ticket.wiings_order}</td>
+                    <td className="p-3">{ticket.tool_id}</td>
+                    <td className="p-3">{ticket.problem_statement}</td>
+                    <td className="p-3">
+                      <span className={getStatusClass(ticket.status)}>
+                        {ticket.status}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <span className={getPriorityClass(ticket.priority)}>
+                        {ticket.priority}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      {ticket.updated_at
+                        ? new Date(ticket.updated_at).toLocaleString()
+                        : new Date(ticket.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="p-3 text-center text-gray-500" colSpan="7">
+                    No tickets available
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+      </div>
 
       {/* Ticket Details Popup */}
       {selectedTicket && (
@@ -477,7 +585,19 @@ export default function Dashboard() {
                       </p>
 
                       {/* Comment Text */}
-                      <p className="text-black mt-1">{comment.text}</p>
+                      {comment.text && (
+                        <p className="text-black mt-1">{comment.text}</p>
+                      )}
+
+                      {/* Display Image (if exists) */}
+                      {comment.image_url && (
+                        <img
+                          src={comment.image_url}
+                          alt="Comment attachment"
+                          className="mt-2 w-16 h-16 object-cover cursor-pointer rounded-lg border"
+                          onClick={() => setEnlargedImage(comment.image_url)}
+                        />
+                      )}
 
                       {/* Divider */}
                       {index < comments.length - 1 && (
@@ -490,31 +610,71 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Comment Input Box */}
-              <div className="mt-4">
+              {/* Comment Input & Upload Section */}
+              <div className="mt-4 flex justify-between flex-col gap-2">
                 <textarea
                   className="w-full p-3 border rounded text-black min-h-[100px]"
                   placeholder="Add a comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 ></textarea>
-              </div>
 
-              {/* Comment Submit Button (RESTORED ✅) */}
-              <div className="flex justify-end mt-4">
-                <Button variant="primary" onClick={addComment}>
-                  <MessageCircle className="w-5 h-5" />
-                </Button>
+                {/* Submit Button */}
+                <div className="flex flex-row justify-between">
+                  <Button variant="primary" onClick={addComment}>
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
+                  {/* File Upload Input */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="file:bg-blue-50 file:text-blue-700 file:px-4 file:py-2 file:rounded-lg file:border-0 hover:file:bg-blue-100"
+                    />
+                    {imagePreview && (
+                      <div className="relative ">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-16 h-16 rounded-lg border"
+                        />
+                        <button
+                          onClick={() => {
+                            setSelectedImage(null);
+                            setImagePreview(null);
+                          }}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full px-2 py-1 text-xs"
+                        >
+                          ✖
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* Enlarged Image Popup */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <img
+            src={enlargedImage}
+            alt="Enlarged"
+            className="max-w-3xl max-h-3xl rounded-lg shadow-lg"
+          />
         </div>
       )}
 
       {/* Footer */}
       <div className="flex justify-between items-center mt-4">
         <div className="flex items-center">
-          <p className="text-gray-500 mr-4">
+          <p className="text-gray-500 mr-2">
             Auto-refresh in {refreshTimer} sec
           </p>
           <Button
@@ -523,7 +683,7 @@ export default function Dashboard() {
               fetchTickets();
             }}
           >
-            <RefreshCw className="w-5 h-5 mr-2" />
+            <RefreshCw className="w-5 h-5" />
           </Button>
         </div>
       </div>
