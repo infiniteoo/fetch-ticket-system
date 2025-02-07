@@ -24,6 +24,11 @@ export default function Dashboard() {
   const [enlargedImage, setEnlargedImage] = useState(null); // Image for popup
 
   const [selectedTickets, setSelectedTickets] = useState([]);
+  const [sortConfig, setSortConfig] = useState({
+    key: "updated_at",
+    direction: "desc",
+  }); // Default sorting
+
   const [searchParams, setSearchParams] = useState({
     status: "All",
   });
@@ -49,6 +54,23 @@ export default function Dashboard() {
     }
   }
 
+  function sortTickets(tickets) {
+    const { key, direction } = sortConfig;
+    return [...tickets].sort((a, b) => {
+      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function handleSort(column) {
+    setSortConfig((prev) => ({
+      key: column,
+      direction:
+        prev.key === column && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  }
+
   async function handleCloseTicket() {
     if (!selectedTicket) return;
 
@@ -59,7 +81,7 @@ export default function Dashboard() {
         closed_reason: closeReason,
         closed_subreason: closeSubReason,
         closed_message: closeMessage,
-        updated_at: new Date().toISOString(), // Update timestamp
+        updated_at: new Date().toLocaleString(), // Update timestamp
       })
       .eq("id", selectedTicket.id);
 
@@ -153,7 +175,7 @@ export default function Dashboard() {
   }
 
   // Function to filter tickets based on dropdown selection
-  function getFilteredTickets() {
+  /*  function getFilteredTickets() {
     return tickets
       .filter((ticket) => {
         // Dropdown filtering (Status)
@@ -181,7 +203,37 @@ export default function Dashboard() {
         );
       });
   }
+ */
 
+  function getFilteredTickets() {
+    return sortTickets(
+      tickets
+        .filter((ticket) => {
+          if (searchParams.status === "All") return true;
+          if (searchParams.status === "New")
+            return ticket.status === "New Request";
+          if (searchParams.status === "Open")
+            return (
+              ticket.status !== "Closed" && ticket.status !== "Canceled by User"
+            );
+          if (searchParams.status === "Closed")
+            return ticket.status === "Closed";
+          return true;
+        })
+        .filter((ticket) => {
+          if (!searchQuery) return true;
+          const query = searchQuery.toLowerCase();
+          return (
+            ticket.issue_id.toLowerCase().includes(query) ||
+            ticket.tool_id.toLowerCase().includes(query) ||
+            ticket.wiings_order.toLowerCase().includes(query) ||
+            ticket.problem_statement.toLowerCase().includes(query) ||
+            ticket.status.toLowerCase().includes(query) ||
+            ticket.priority.toLowerCase().includes(query)
+          );
+        })
+    );
+  }
   function resetFilteredTickets() {
     return tickets.filter((ticket) => {
       setSearchParams("All");
@@ -397,14 +449,29 @@ export default function Dashboard() {
           <Table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-100 dark:bg-gray-800 text-left">
-                <th className="p-3">Issue ID</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Order #</th>
-                <th className="p-3">Tool ID</th>
-                <th className="p-3">Statement</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Priority</th>
-                <th className="p-3">Last Updated</th>
+                {[
+                  { key: "issue_id", label: "Issue ID" },
+                  { key: "name", label: "Name" },
+                  { key: "wiings_order", label: "Order #" },
+                  { key: "tool_id", label: "Tool ID" },
+                  { key: "problem_statement", label: "Statement" },
+                  { key: "status", label: "Status" },
+                  { key: "priority", label: "Priority" },
+                  { key: "updated_at", label: "Last Updated" },
+                ].map((col) => (
+                  <th
+                    key={col.key}
+                    className="p-3 cursor-pointer hover:text-blue-500"
+                    onClick={() => handleSort(col.key)}
+                  >
+                    {col.label}{" "}
+                    {sortConfig.key === col.key
+                      ? sortConfig.direction === "asc"
+                        ? "⬆️"
+                        : "⬇️"
+                      : ""}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -443,7 +510,7 @@ export default function Dashboard() {
                 ))
               ) : (
                 <tr>
-                  <td className="p-3 text-center text-gray-500" colSpan="7">
+                  <td className="p-3 text-center text-gray-500" colSpan="8">
                     No tickets available
                   </td>
                 </tr>

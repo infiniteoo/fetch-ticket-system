@@ -84,17 +84,15 @@ export default function SubmitTicket() {
       imageUrl = await uploadImage(selectedImage);
     }
 
-    const localTimestamp = new Date().toLocaleString("en-US", {
-      timeZone: "America/Los_Angeles",
-    });
+    const utcTimestamp = new Date().toLocaleString();
 
-    // Insert comment
+    // Insert new comment
     const { error: commentError } = await supabase.from("comments").insert({
       ticket_id: form.id,
       text: newComment,
       commenter_name: commenterName,
       image_url: imageUrl,
-      created_at: localTimestamp, // ✅ Store local timestamp
+      created_at: utcTimestamp, // ✅ Store UTC timestamp
     });
 
     if (commentError) {
@@ -102,19 +100,96 @@ export default function SubmitTicket() {
       return;
     }
 
-    // Update the ticket's last updated time
+    // Update ticket's last updated time
     const { error: updateError } = await supabase
       .from("tickets")
-      .update({
-        updated_at: localTimestamp, // ✅ Update ticket last updated time
-      })
+      .update({ updated_at: localTimestamp })
       .eq("id", form.id);
 
     if (updateError) {
       console.error("Error updating ticket timestamp:", updateError);
     }
 
-    fetchComments(form.id);
+    // 🔥 Fetch fresh comments **AFTER** inserting new comment
+    await fetchComments(form.id);
+
+    // 💡 Get fresh comments **IMMEDIATELY** after fetchComments
+    let { data: latestComments, error: fetchError } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("ticket_id", form.id)
+      .order("created_at", { ascending: false });
+
+    if (fetchError) {
+      console.error("Error fetching updated comments:", fetchError);
+      return;
+    }
+
+    console.log("📢 Latest Comments:", latestComments);
+
+    // Format the latest comments for the email
+    const commentSection = latestComments.length
+      ? latestComments
+          .map(
+            (c) => `
+        <tr>
+          <td>${c.commenter_name || "Unknown"}</td>
+          <td>${c.text || "No comment text"}</td>
+          <td>${new Date(c.created_at).toLocaleString()}</td>
+        </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
+
+    // Construct email HTML
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
+        <p>Hi <strong>${form.name}</strong>,</p>
+        <p>Your support ticket has received a new comment. Below are the details:</p>
+        <hr>
+        <p><strong>Issue ID:</strong> ${form.issue_id}</p>
+        <p><strong>Problem Statement:</strong> ${form.problem_statement}</p>
+        <p><strong>Priority:</strong> ${form.priority}</p>
+        <p><strong>Status:</strong> ${form.status}</p>
+        <p><strong>Tool ID:</strong> ${form.tool_id}</p>
+        <p><strong>Area:</strong> ${form.area}</p>
+        <p><strong>Supplier:</strong> ${form.supplier}</p>
+        <h3>📝 New Comments</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0073e6;color:white;">
+              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
+              <th style="padding:10px;border:1px solid #ddd;">Message</th>
+              <th style="padding:10px;border:1px solid #ddd;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${commentSection}
+          </tbody>
+        </table>
+        <hr>
+        <p>Thank you for using Fetch Ticket System! 🎟️</p>
+      </div>
+    `;
+
+    // Send email
+    const emailResponse = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: form.email,
+        subject: `Your Support Ticket (#${form.issue_id}) - Fetch Ticket System *New Comment*`,
+        html: emailHtml,
+      }),
+    });
+
+    const emailResult = await emailResponse.json();
+    console.log("📨 Email Result:", emailResult);
+
+    if (!emailResult.success) {
+      console.error("❌ Email sending failed:", emailResult.error);
+    }
 
     setNewComment("");
     setSelectedImage(null);
@@ -186,7 +261,7 @@ export default function SubmitTicket() {
         area: form.area,
         supplier: form.supplier,
         email: form.email,
-        updated_at: new Date().toLocaleString(), // ✅ Ensure timestamp is updated
+        updated_at: new Date().toLocaleString(), // ✅ Store in UTC
       })
       .eq("id", form.id); // Ensure correct ticket is updated
 
@@ -297,7 +372,7 @@ export default function SubmitTicket() {
     // Insert ticket into Supabase
     const { error } = await supabase
       .from("tickets")
-      .insert([{ ...form, issue_id }]);
+      .insert([{ ...form, issue_id, created_at: new Date().toLocaleString() }]);
 
     if (error) {
       alert("Error submitting ticket");

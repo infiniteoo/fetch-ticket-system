@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       newComments.push({
         commenter,
         text: comment,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toLocaleString(),
       });
 
       const { error: commentError } = await supabase
