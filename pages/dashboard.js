@@ -367,6 +367,87 @@ export default function Dashboard() {
       console.error("Error updating ticket timestamp:", updateError);
     }
 
+    // 🔥 Fetch fresh comments **AFTER** inserting new comment
+    await fetchComments(selectedTicket.id);
+
+    // 💡 Get fresh comments **IMMEDIATELY** after fetchComments
+    let { data: latestComments, error: fetchError } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("ticket_id", selectedTicket.id)
+      .order("created_at", { ascending: false });
+
+    if (fetchError) {
+      console.error("Error fetching updated comments:", fetchError);
+      return;
+    }
+
+    console.log("📢 Latest Comments:", latestComments);
+
+    // Format the latest comments for the email
+    const commentSection = latestComments.length
+      ? latestComments
+          .map(
+            (c) => `
+        <tr>
+          <td>${c.commenter_name || "Unknown"}</td>
+          <td>${c.text || "No comment text"}</td>
+          <td>${new Date(c.created_at).toLocaleString()}</td>
+        </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
+
+    // Construct email HTML
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
+        <p>Hi <strong>${selectedTicket.name}</strong>,</p>
+        <p>Your support ticket has received a new comment. Below are the details:</p>
+        <hr>
+        <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
+        <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
+        <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
+        <p><strong>Status:</strong> ${selectedTicket.status}</p>
+        <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
+        <p><strong>Area:</strong> ${selectedTicket.area}</p>
+        <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
+        <h3>📝 New Comments</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0073e6;color:white;">
+              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
+              <th style="padding:10px;border:1px solid #ddd;">Message</th>
+              <th style="padding:10px;border:1px solid #ddd;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${commentSection}
+          </tbody>
+        </table>
+        <hr>
+        <p>Thank you for using Fetch Ticket System! 🎟️</p>
+      </div>
+    `;
+
+    // Send email
+    const emailResponse = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: selectedTicket.email,
+        subject: `Your Support Ticket (#${selectedTicket.issue_id}) - Fetch Ticket System *New Comment*`,
+        html: emailHtml,
+      }),
+    });
+
+    const emailResult = await emailResponse.json();
+    console.log("📨 Email Result:", emailResult);
+
+    if (!emailResult.success) {
+      console.error("❌ Email sending failed:", emailResult.error);
+    }
+
     fetchComments(selectedTicket.id);
     fetchTickets(); // Refresh ticket list
 
@@ -407,8 +488,135 @@ export default function Dashboard() {
       .eq("id", selectedTicket.id);
 
     if (!error) {
-      fetchTickets(); // Refresh tickets in the dashboard
-      closeTicketDetails(); // Close popup after updating
+      // add a new comment if status is updated
+      // add a new comment if status or priority is updated
+      if (
+        updatedStatus !== selectedTicket.status ||
+        updatedPriority !== selectedTicket.priority
+      ) {
+        const commenterName = "Customer Service Rep";
+        const localTimestamp = new Date().toLocaleString("en-US", {
+          timeZone: "America/Los_Angeles",
+        });
+
+        let commentText = "";
+        if (updatedStatus !== selectedTicket.status) {
+          commentText += `Status updated to ${updatedStatus}. `;
+        }
+        if (updatedPriority !== selectedTicket.priority) {
+          commentText += `Priority changed to ${updatedPriority}. `;
+        }
+
+        const { error: commentError } = await supabase.from("comments").insert({
+          ticket_id: selectedTicket.id,
+          text: commentText.trim(), // Ensures proper formatting
+          commenter_name: commenterName,
+          created_at: localTimestamp,
+        });
+
+        if (commentError) {
+          console.error(
+            "Error adding comment for status/priority change:",
+            commentError
+          );
+        }
+      }
+
+      // email notification
+      // 🔥 Fetch fresh comments **AFTER** inserting new comment
+      await fetchComments(selectedTicket.id);
+
+      // 💡 Get fresh comments **IMMEDIATELY** after fetchComments
+      let { data: latestComments, error: fetchError } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("ticket_id", selectedTicket.id)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        console.error("Error fetching updated comments:", fetchError);
+        return;
+      }
+
+      console.log("📢 Latest Comments:", latestComments);
+
+      // Format the latest comments for the email
+      const commentSection = latestComments.length
+        ? latestComments
+            .map(
+              (c) => `
+        <tr>
+          <td>${c.commenter_name || "Unknown"}</td>
+          <td>${c.text || "No comment text"}</td>
+          <td>${new Date(c.created_at).toLocaleString()}</td>
+        </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
+
+      // Construct email HTML
+      selectedTicket.status = updatedStatus;
+      selectedTicket.priority = updatedPriority;
+      const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
+        <p>Hi <strong>${selectedTicket.name}</strong>,</p>
+        <p>Your support ticket has received a new comment. Below are the details:</p>
+        <hr>
+        <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
+        <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
+        <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
+        <p><strong>Status:</strong> ${selectedTicket.status}</p>
+        <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
+        <p><strong>Area:</strong> ${selectedTicket.area}</p>
+        <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
+        <h3>📝 New Comments</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0073e6;color:white;">
+              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
+              <th style="padding:10px;border:1px solid #ddd;">Message</th>
+              <th style="padding:10px;border:1px solid #ddd;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${commentSection}
+          </tbody>
+        </table>
+        <hr>
+        <p>Thank you for using Fetch Ticket System! 🎟️</p>
+      </div>
+    `;
+
+      // Send email
+      const emailResponse = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: selectedTicket.email,
+          subject: `Your Support Ticket (#${selectedTicket.issue_id}) - Fetch Ticket System *Status Update*`,
+          html: emailHtml,
+        }),
+      });
+
+      const emailResult = await emailResponse.json();
+      console.log("📨 Email Result:", emailResult);
+
+      if (!emailResult.success) {
+        console.error("❌ Email sending failed:", emailResult.error);
+      }
+
+      // Fetch the updated ticket details from Supabase
+      // Manually update the UI state immediately
+      setSelectedTicket((prevTicket) => ({
+        ...prevTicket,
+        status: updatedStatus,
+        priority: updatedPriority,
+        updated_at: new Date().toISOString(), // Ensure latest timestamp
+      }));
+      console.log("selectedTick after changing satus", selectedTicket);
+
+      fetchTickets(); // ✅ Refresh the main dashboard ticket list
     } else {
       console.error("Error updating ticket:", error);
     }
