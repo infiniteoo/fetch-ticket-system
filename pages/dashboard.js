@@ -73,6 +73,23 @@ export default function Dashboard() {
 
   async function handleCloseTicket() {
     if (!selectedTicket) return;
+    const localTimestamp = new Date().toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+    });
+    // Step 1: Add a comment that the ticket was closed
+    const closeComment = `Ticket closed. Reason: ${closeReason}. Sub-Reason: ${closeSubReason}. Message: ${closeMessage}`;
+
+    const { error: commentError } = await supabase.from("comments").insert({
+      ticket_id: selectedTicket.id,
+      text: closeComment,
+      commenter_name: "System",
+      created_at: localTimestamp,
+    });
+
+    if (commentError) {
+      console.error("Error adding close comment:", commentError);
+      return;
+    }
 
     const { error } = await supabase
       .from("tickets")
@@ -87,7 +104,53 @@ export default function Dashboard() {
 
     if (!error) {
       alert("Ticket closed successfully!");
-      fetchTickets(); // Refresh tickets
+      // Step 3: Fetch updated comments
+      await fetchComments(selectedTicket.id);
+
+      // Step 4: Send an email notification
+      const emailHtml = `
+    <div style="font-family: Arial, sans-serif; padding: 20px;">
+      <h2 style="color: #007bff;">🎟️ Fetch Ticket Update - Ticket Closed</h2>
+      <p>Hi <strong>${selectedTicket.name}</strong>,</p>
+      <p>Your support ticket has been closed. Below are the details:</p>
+      <hr>
+      <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
+      <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
+      <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
+      <p><strong>Status:</strong> Closed</p>
+      <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
+      <p><strong>Area:</strong> ${selectedTicket.area}</p>
+      <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
+      <hr>
+      <h3>🔒 Closure Details</h3>
+      <p><strong>Reason:</strong> ${closeReason}</p>
+      <p><strong>Sub-Reason:</strong> ${closeSubReason}</p>
+      <p><strong>Additional Notes:</strong> ${closeMessage}</p>
+      <hr>
+      <p>Thank you for using Fetch Ticket System! 🎟️</p>
+    </div>
+  `;
+
+      const emailResponse = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: selectedTicket.email,
+          subject: `Your Support Ticket (#${selectedTicket.issue_id}) - Fetch Ticket System *Closed*`,
+          html: emailHtml,
+        }),
+      });
+
+      const emailResult = await emailResponse.json();
+      console.log("📨 Email Result:", emailResult);
+
+      if (!emailResult.success) {
+        console.error("❌ Email sending failed:", emailResult.error);
+      }
+
+      // Step 5: Refresh the ticket list & UI
+      alert("Ticket closed successfully!");
+      fetchTickets(); // Refresh ticket list
       setShowClosePopup(false); // Close popup
       closeTicketDetails(); // Close details view
     } else {
