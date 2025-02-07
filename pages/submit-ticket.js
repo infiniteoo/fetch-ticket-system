@@ -245,7 +245,7 @@ export default function SubmitTicket() {
         <h1 className="text-2xl font-bold mb-4 text-black">
           Submit a Support Ticket 🎟️
         </h1>
-        <div>
+        <div className="flex flex-row justify-evenly items-center">
           <input
             type="text"
             placeholder="Search Tickets"
@@ -253,10 +253,11 @@ export default function SubmitTicket() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="border px-3 py-2 rounded-lg text-black"
           />
-
-          <Button onClick={() => loadExistingTicket(searchQuery)}>
-            <Search className="w-5 h-5 " />
-          </Button>
+          <div className="ml-1">
+            <Button onClick={() => loadExistingTicket(searchQuery)}>
+              <Search className="w-6 h-6 " />
+            </Button>
+          </div>
         </div>
       </div>
       <div className="flex flex-row">
