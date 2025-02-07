@@ -122,6 +122,7 @@ export default function SubmitTicket() {
   }
 
   async function fetchComments(ticketId) {
+    console.log("Fetching comments for ticket:", ticketId);
     let { data, error } = await supabase
       .from("comments")
       .select("text, created_at, commenter_name, image_url") // ✅ Include image_url
@@ -159,7 +160,7 @@ export default function SubmitTicket() {
       alert("Error loading ticket");
     } else {
       setForm(data);
-      console.log("loaded ticket", form);
+      console.log("loaded ticket", data);
       setIsExistingTicketLoaded(true);
     }
 
@@ -193,6 +194,83 @@ export default function SubmitTicket() {
       console.error("Error updating ticket:", error);
       alert("Error updating ticket");
     } else {
+      // send an email to the user with the updated ticket details
+      // get comments for ticket if they exist
+      await fetchComments(form.id);
+      console.log("form", form);
+      console.log("form id", form.id);
+
+      console.log("comments", comments);
+      let commentSection = [];
+      // check to se if comments has any data
+      if (comments) {
+        commentSection = comments
+          .map(
+            (c) => `
+        <tr>
+          <td>${c.commenter_name || "Unknown"}</td>
+          <td>${c.text || "No comment text"}</td>
+          <td>${new Date(c.created_at).toLocaleString()}</td>
+        </tr>
+      `
+          )
+          .join("");
+      } else {
+        commentSection = `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
+      }
+
+      // Construct email HTML
+      const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color: #007bff;">🎟️ Fetch Ticket Confirmation</h2>
+        <p>Hi <strong>${form.name}</strong>,</p>
+        <p>Your support ticket has been updated. Below are the details:</p>
+        <hr>
+        <p><strong>Issue ID:</strong> ${form.issue_id}</p>
+        <p><strong>Problem Statement:</strong> ${form.problem_statement}</p>
+        <p><strong>Priority:</strong> ${form.priority}</p>
+        <p><strong>Status:</strong> ${form.status}</p>
+        <p><strong>Tool ID:</strong> ${form.tool_id}</p>
+        <p><strong>Area:</strong> ${form.area}</p>
+        <p><strong>Supplier:</strong> ${form.supplier}</p>
+         <h3>Comments</h3>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#0073e6;color:white;">
+                <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
+                <th style="padding:10px;border:1px solid #ddd;">Message</th>
+                <th style="padding:10px;border:1px solid #ddd;">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${commentSection}
+            </tbody>
+          </table>
+        <hr>
+        <p>Thank you for using Fetch Ticket System! 🎟️</p>
+      </div>
+    `;
+
+      // Send email via API route
+      const emailResponse = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: form.email,
+          subject: `Your Support Ticket (#${form.issue_id}) - Fetch Ticket System *Updated*`,
+          html: emailHtml,
+        }),
+      });
+
+      const emailResult = await emailResponse.json();
+      console.log("📨 Email Result:", emailResult);
+
+      if (!emailResult.success) {
+        console.error("❌ Email sending failed:", emailResult.error);
+      }
+
       alert("Ticket updated successfully!");
       setIsExistingTicketLoaded(false);
       setComments([]);
@@ -211,74 +289,6 @@ export default function SubmitTicket() {
       });
     }
   };
-  async function sendTicketEmail(ticket, issue_id, comments) {
-    if (!ticket.email) return;
-
-    const commentSection = comments.length
-      ? comments
-          .map(
-            (c) => `
-        <tr>
-          <td>${c.commenter_name || "Unknown"}</td>
-          <td>${c.text || "No comment text"}</td>
-          <td>${new Date(c.created_at).toLocaleString()}</td>
-        </tr>
-      `
-          )
-          .join("")
-      : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
-
-    const emailHtml = `
-      <div style="font-family:Arial,sans-serif;padding:20px;background:#f8f8f8;color:#333;">
-        <div style="text-align:center;margin-bottom:20px;">
-          <img src="https://your-logo-url.com/fetch-ticket-logo.png" alt="Fetch Ticket System" width="150"/>
-          <h2 style="color:#0073e6;">Support Ticket Confirmation</h2>
-        </div>
-        <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-          <h3>Ticket Details</h3>
-          <p><strong>Issue ID:</strong> ${issue_id}</p>
-          <p><strong>Name:</strong> ${ticket.name}</p>
-          <p><strong>Email:</strong> ${ticket.email}</p>
-          <p><strong>Problem Statement:</strong> ${ticket.problem_statement}</p>
-          <p><strong>Priority:</strong> ${ticket.priority}</p>
-          <p><strong>Status:</strong> ${ticket.status}</p>
-          <p><strong>Supplier:</strong> ${ticket.supplier}</p>
-          <p><strong>Area:</strong> ${ticket.area}</p>
-          <hr style="border-top:1px solid #ccc;"/>
-          
-          <h3>Comments</h3>
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:#0073e6;color:white;">
-                <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-                <th style="padding:10px;border:1px solid #ddd;">Message</th>
-                <th style="padding:10px;border:1px solid #ddd;">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${commentSection}
-            </tbody>
-          </table>
-        </div>
-        <div style="margin-top:20px;text-align:center;color:#888;font-size:12px;">
-          <p>Thank you for using Fetch Ticket System!</p>
-        </div>
-      </div>
-    `;
-
-    try {
-      await resend.emails.send({
-        from: "support@fetch-tickets.com",
-        to: ticket.email,
-        subject: `Ticket Confirmation - ${issue_id}`,
-        html: emailHtml,
-      });
-
-      console.log("Email sent successfully to", ticket.email);
-    } catch (err) {
-      console.error("Error sending email:", err);
-    }
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -292,6 +302,26 @@ export default function SubmitTicket() {
     if (error) {
       alert("Error submitting ticket");
       return;
+    }
+
+    // get comments for ticket if they exist
+    await fetchComments(issue_id);
+    let commentSection = [];
+    // check to se if comments has any data
+    if (comments) {
+      commentSection = comments
+        .map(
+          (c) => `
+        <tr>
+          <td>${c.commenter_name || "Unknown"}</td>
+          <td>${c.text || "No comment text"}</td>
+          <td>${new Date(c.created_at).toLocaleString()}</td>
+        </tr>
+      `
+        )
+        .join("");
+    } else {
+      commentSection = `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
     }
 
     // Construct email HTML
@@ -308,6 +338,19 @@ export default function SubmitTicket() {
         <p><strong>Tool ID:</strong> ${form.tool_id}</p>
         <p><strong>Area:</strong> ${form.area}</p>
         <p><strong>Supplier:</strong> ${form.supplier}</p>
+         <h3>Comments</h3>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#0073e6;color:white;">
+                <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
+                <th style="padding:10px;border:1px solid #ddd;">Message</th>
+                <th style="padding:10px;border:1px solid #ddd;">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${commentSection}
+            </tbody>
+          </table>
         <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
