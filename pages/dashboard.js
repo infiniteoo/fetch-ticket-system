@@ -1,6 +1,6 @@
 "use client";
 import { LuClipboard } from "react-icons/lu";
-
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +17,9 @@ import { useTheme } from "next-themes";
 import supabase from "@/lib/supabaseClient";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [tickets, setTickets] = useState([]);
+  const { issue_id } = router.query; // Get issue ID from URL query
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedImage, setSelectedImage] = useState(null); // Stores the selected file
   const [imagePreview, setImagePreview] = useState(null); // Preview before upload
@@ -44,6 +46,28 @@ export default function Dashboard() {
   const [updatedStatus, setUpdatedStatus] = useState("");
   const [updatedPriority, setUpdatedPriority] = useState("");
   const [copiedField, setCopiedField] = useState(null);
+
+  useEffect(() => {
+    if (issue_id) {
+      setSearchQuery(issue_id); // Pre-fill the search field
+      loadExistingTicket(issue_id); // Auto-load the ticket
+    }
+  }, [issue_id]); // Runs when the issue_id is present
+
+  async function loadExistingTicket(issue_id) {
+    if (!issue_id) return;
+    const { data, error } = await supabase
+      .from("tickets")
+      .select()
+      .eq("issue_id", issue_id)
+      .single();
+    if (error) {
+      alert("Error loading ticket");
+    } else {
+      setForm(data);
+      setIsExistingTicketLoaded(true);
+    }
+  }
 
   // Handle image selection
   function handleImageChange(event) {
@@ -126,6 +150,14 @@ export default function Dashboard() {
       <p><strong>Reason:</strong> ${closeReason}</p>
       <p><strong>Sub-Reason:</strong> ${closeSubReason}</p>
       <p><strong>Additional Notes:</strong> ${closeMessage}</p>
+      
+      <hr>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
       <hr>
       <p>Thank you for using Fetch Ticket System! 🎟️</p>
     </div>
@@ -149,7 +181,7 @@ export default function Dashboard() {
       }
 
       // Step 5: Refresh the ticket list & UI
-      alert("Ticket closed successfully!");
+
       fetchTickets(); // Refresh ticket list
       setShowClosePopup(false); // Close popup
       closeTicketDetails(); // Close details view
@@ -452,6 +484,13 @@ export default function Dashboard() {
           </tbody>
         </table>
         <hr>
+        <a href="http://${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
+      <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;
@@ -610,6 +649,13 @@ export default function Dashboard() {
           </tbody>
         </table>
         <hr>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
+      <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;

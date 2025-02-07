@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { useRouter } from "next/router";
 
 import {
   RefreshCw,
@@ -18,6 +19,8 @@ const supabase = createClient(
 );
 
 export default function SubmitTicket() {
+  const router = useRouter();
+  const { issue_id } = router.query; // Get issue ID from URL query
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [selectedImage, setSelectedImage] = useState(null); // Stores the selected file
@@ -38,6 +41,14 @@ export default function SubmitTicket() {
     supplier: "AMAT",
     email: "",
   });
+
+  useEffect(() => {
+    if (issue_id) {
+      setSearchQuery(issue_id); // Pre-fill the search field
+      loadExistingTicket(issue_id); // Auto-load the ticket
+    }
+  }, [issue_id]); // Runs when the issue_id is present
+
   function handleImageChange(event) {
     const file = event.target.files[0];
     if (file) {
@@ -169,6 +180,13 @@ export default function SubmitTicket() {
           </tbody>
         </table>
         <hr>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
+      <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;
@@ -262,6 +280,13 @@ export default function SubmitTicket() {
         <h3>📝 Changes Made</h3>
         <p>${commentText}</p>
         <hr>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
+      <hr>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;
@@ -409,6 +434,12 @@ export default function SubmitTicket() {
             </tbody>
           </table>
         <hr>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <button style="background-color: #007bff; color: white; padding: 10px 20px;
+                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+          🔍 Open My Ticket
+        </button>
+      </a>
         <p>Thank you for using Fetch Ticket System! 🎟️</p>
       </div>
     `;
@@ -639,7 +670,7 @@ export default function SubmitTicket() {
                   "RA4 SORT",
                   "RA4 STO",
                   "RA4 WLA",
-                  "RP1",
+
                   "Subfab",
                   "Thin Films",
                   "TSV",
