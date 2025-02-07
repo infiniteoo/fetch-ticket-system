@@ -237,37 +237,6 @@ export default function Dashboard() {
     }
   }
 
-  // Function to filter tickets based on dropdown selection
-  /*  function getFilteredTickets() {
-    return tickets
-      .filter((ticket) => {
-        // Dropdown filtering (Status)
-        if (searchParams.status === "All") return true;
-        if (searchParams.status === "New")
-          return ticket.status === "New Request";
-        if (searchParams.status === "Open")
-          return (
-            ticket.status !== "Closed" && ticket.status !== "Canceled by User"
-          );
-        if (searchParams.status === "Closed") return ticket.status === "Closed";
-        return true;
-      })
-      .filter((ticket) => {
-        // Search Box Filtering (Filters across multiple fields)
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-          ticket.issue_id.toLowerCase().includes(query) ||
-          ticket.tool_id.toLowerCase().includes(query) ||
-          ticket.wiings_order.toLowerCase().includes(query) ||
-          ticket.problem_statement.toLowerCase().includes(query) ||
-          ticket.status.toLowerCase().includes(query) ||
-          ticket.priority.toLowerCase().includes(query)
-        );
-      });
-  }
- */
-
   function getFilteredTickets() {
     return sortTickets(
       tickets
@@ -296,12 +265,6 @@ export default function Dashboard() {
           );
         })
     );
-  }
-  function resetFilteredTickets() {
-    return tickets.filter((ticket) => {
-      setSearchParams("All");
-      if (searchParams.status === "All") return true;
-    });
   }
 
   function getPriorityClass(priority) {
@@ -724,6 +687,7 @@ export default function Dashboard() {
                   { key: "issue_id", label: "Issue ID" },
                   { key: "name", label: "Name" },
                   { key: "wiings_order", label: "Order #" },
+                  { key: "part_number", label: "Part #" },
                   { key: "tool_id", label: "Tool ID" },
                   { key: "problem_statement", label: "Statement" },
                   { key: "status", label: "Status" },
@@ -750,32 +714,69 @@ export default function Dashboard() {
                 getFilteredTickets().map((ticket) => (
                   <tr
                     key={ticket.id}
-                    className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                    className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm"
                     onClick={() => openTicketDetails(ticket)}
                   >
                     <td className="p-3">{ticket.issue_id}</td>
                     <td className="p-3">{ticket.name}</td>
                     <td className="p-3">{ticket.wiings_order}</td>
+                    <td className="p-3">{ticket.part_number}</td>
                     <td className="p-3">{ticket.tool_id}</td>
                     <td className="p-3">
                       {ticket.problem_statement.length > 20
                         ? ticket.problem_statement.substring(0, 20) + "..."
                         : ticket.problem_statement}
                     </td>
-                    <td className="p-3">
-                      <span className={getStatusClass(ticket.status)}>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`${getStatusClass(
+                          ticket.status
+                        )} p-3 min-w-[200px] whitespace-nowrap inline-block text-center`}
+                      >
                         {ticket.status}
                       </span>
                     </td>
-                    <td className="p-3">
-                      <span className={getPriorityClass(ticket.priority)}>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`${getPriorityClass(
+                          ticket.priority
+                        )} p-3 min-w-[100px] whitespace-nowrap inline-block text-center`}
+                      >
                         {ticket.priority}
                       </span>
                     </td>
+
+                    {/*   <td className="p-3">
+                      <span className={getPriorityClass(ticket.priority)}>
+                        {ticket.priority}
+                      </span>
+                    </td> */}
                     <td className="p-3">
-                      {ticket.updated_at
-                        ? new Date(ticket.updated_at).toLocaleString()
-                        : new Date(ticket.created_at).toLocaleString()}
+                      <td className="p-3">
+                        {ticket.updated_at
+                          ? new Date(ticket.updated_at).toLocaleString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false, // Uses 24-hour format, change to `true` for AM/PM format
+                              }
+                            )
+                          : new Date(ticket.created_at).toLocaleString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              }
+                            )}
+                      </td>
                     </td>
                   </tr>
                 ))
