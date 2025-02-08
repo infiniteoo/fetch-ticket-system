@@ -317,7 +317,7 @@ export default function Dashboard() {
       case "High":
         return "bg-orange-500 text-white rounded-lg px-2 py-1";
       case "Factory Constraint":
-        return "bg-red-500 animate-pulse text-white rounded-lg px-2 py-1";
+        return "bg-red-500 text-white rounded-lg px-2 py-1";
       default:
         return "bg-gray-300 text-black rounded-lg px-2 py-1";
     }
