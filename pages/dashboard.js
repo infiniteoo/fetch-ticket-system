@@ -315,7 +315,7 @@ export default function Dashboard() {
       case "Medium":
         return "bg-yellow-500 text-black rounded-lg px-2 py-1";
       case "High":
-        return "bg-red-500 text-white rounded-lg px-2 py-1";
+        return "bg-orange-500 text-white rounded-lg px-2 py-1";
       case "Factory Constraint":
         return "bg-red-500 animate-pulse text-white rounded-lg px-2 py-1";
       default:
@@ -330,47 +330,47 @@ export default function Dashboard() {
       case "New Request":
         return "bg-green-500 text-white rounded-lg px-5 py-1";
       case "OM Escalated":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-blue-500 text-white rounded-lg px-5 py-1";
       case "Waiting 3PL":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-red-500 text-white rounded-lg px-5 py-1";
       case "Canceled by User":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-gray-500 text-white rounded-lg px-5 py-1";
       case "Waiting Customer":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-orange-500 text-white rounded-lg px-5 py-1";
       case "Waiting Elevator Repair":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-purple-500 text-white rounded-lg px-5 py-1";
       case "Waiting Chemicals":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-teal-500 text-white rounded-lg px-5 py-1";
       case "Waiting on IT":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-pink-500 text-white rounded-lg px-5 py-1";
       case "Waiting Tool Move":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-indigo-500 text-white rounded-lg px-5 py-1";
       case "Exceptions/Variants":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-lime-500 text-black rounded-lg px-5 py-1";
       case "Waiting Count n Verify":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-cyan-500 text-black rounded-lg px-5 py-1";
       case "Waiting Delivery Confirmation":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-rose-500 text-white rounded-lg px-5 py-1";
       case "Waiting Distribution":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-emerald-500 text-white rounded-lg px-5 py-1";
       case "Waiting Inbound":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-fuchsia-500 text-white rounded-lg px-5 py-1";
       case "Waiting IMO":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-amber-500 text-black rounded-lg px-5 py-1";
       case "Waiting Inv Control":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-violet-500 text-white rounded-lg px-5 py-1";
       case "Waiting Put-away":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-sky-500 text-black rounded-lg px-5 py-1";
       case "Waiting Returns":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-green-600 text-white rounded-lg px-5 py-1";
       case "Waiting Shipping":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-red-600 text-white rounded-lg px-5 py-1";
       case "Waiting Si":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-yellow-600 text-black rounded-lg px-5 py-1";
       case "Waiting Stores":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-gray-600 text-white rounded-lg px-5 py-1";
       case "Waiting eParts":
-        return "bg-green-500 text-white rounded-lg px-5 py-1";
+        return "bg-blue-600 text-white rounded-lg px-5 py-1";
       case "Re-Opened":
         return "bg-yellow-500 text-black rounded-lg px-5 py-1";
       case "Closed":
