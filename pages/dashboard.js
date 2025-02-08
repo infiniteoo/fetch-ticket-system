@@ -141,36 +141,40 @@ export default function Dashboard() {
       await fetchComments(selectedTicket.id);
 
       // Step 4: Send an email notification
+      const surveyLink = `${process.env.NEXT_PUBLIC_APP_URL}/survey?ticket_id=${selectedTicket.id}`;
+
       const emailHtml = `
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-      <h2 style="color: #007bff;">🎟️ Fetch Ticket Update - Ticket Closed</h2>
-      <p>Hi <strong>${selectedTicket.name}</strong>,</p>
-      <p>Your support ticket has been closed. Below are the details:</p>
-      <hr>
-      <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
-      <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
-      <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
-      <p><strong>Status:</strong> Closed</p>
-      <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
-      <p><strong>Area:</strong> ${selectedTicket.area}</p>
-      <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
-      <hr>
-      <h3>🔒 Closure Details</h3>
-      <p><strong>Reason:</strong> ${closeReason}</p>
-      <p><strong>Sub-Reason:</strong> ${closeSubReason}</p>
-      <p><strong>Additional Notes:</strong> ${closeMessage}</p>
-      
-      <hr>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-      <hr>
-      <p>Thank you for using Fetch Ticket System! 🎟️</p>
-    </div>
-  `;
+  <div style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2 style="color: #007bff;">🎟️ Fetch Ticket Update - Ticket Closed</h2>
+    <p>Hi <strong>${selectedTicket.name}</strong>,</p>
+    <p>Your support ticket has been closed. Below are the details:</p>
+    <hr>
+    <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
+    <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
+    <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
+    <p><strong>Status:</strong> Closed</p>
+    <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
+    <p><strong>Area:</strong> ${selectedTicket.area}</p>
+    <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
+    <hr>
+    <h3>🔒 Closure Details</h3>
+    <p><strong>Reason:</strong> ${closeReason}</p>
+    <p><strong>Sub-Reason:</strong> ${closeSubReason}</p>
+    <p><strong>Additional Notes:</strong> ${closeMessage}</p>
+
+    <hr>
+    <h3>📢 We'd Love Your Feedback!</h3>
+    <p>Help us improve by taking a quick survey about your experience:</p>
+    <a href="${surveyLink}" target="_blank">
+      <button style="background-color: #28a745; color: white; padding: 10px 20px;
+                    border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+        📝 Take the Survey
+      </button>
+    </a>
+    <hr>
+    <p>Thank you for using Fetch Ticket System! 🎟️</p>
+  </div>
+`;
 
       const emailResponse = await fetch("/api/send-email", {
         method: "POST",
