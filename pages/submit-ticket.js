@@ -250,23 +250,33 @@ export default function SubmitTicket() {
   };
 
   const loadExistingTicket = async (issue_id) => {
-    if (!issue_id) return;
-    const { data, error } = await supabase
-      .from("tickets")
-      .select()
-      .eq("issue_id", issue_id)
-      .single();
-    if (error) {
-      toast.error("❌ Error loading ticket. Please try again.");
-    } else {
-      setForm(data);
-      console.log("loaded ticket", data);
-      toast.success("✅ Ticket loaded successfully!");
-      setIsExistingTicketLoaded(true);
+    if (!issue_id) {
+      toast.error("❌ Please enter a valid ticket number.");
+      return;
     }
 
-    // load comments too
-    fetchComments(data.id);
+    try {
+      const { data, error } = await supabase
+        .from("tickets")
+        .select()
+        .eq("issue_id", issue_id)
+        .single();
+
+      if (error || !data) {
+        toast.error("❌ Ticket not found. Please check the issue number.");
+        return; // 🚨 Exit function to prevent crashes
+      }
+
+      setForm(data);
+      setIsExistingTicketLoaded(true);
+      toast.success("✅ Ticket loaded successfully!");
+
+      // Load comments only if ticket exists
+      await fetchComments(data.id);
+    } catch (err) {
+      console.error("Unexpected error loading ticket:", err);
+      toast.error("❌ Unexpected error. Please try again.");
+    }
   };
 
   const sendUpdateEmail = async (commentText) => {
@@ -738,7 +748,7 @@ export default function SubmitTicket() {
         </div>
         <div>
           <div className="w-full flex flex-col ml-4">
-            <h3 className="text-2xl font-bold mb-4">Comments</h3>
+            <h3 className="text-2xl font-bold mb-4 text-gray-500">Comments</h3>
 
             {/* Comment Thread (Scrollable) */}
             <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[250px] max-w-[400px]">
@@ -778,7 +788,7 @@ export default function SubmitTicket() {
                   </div>
                 ))
               ) : (
-                <p className="text-black">No comments yet</p>
+                <p className="text-gray-400">No comments yet</p>
               )}
             </div>
 
@@ -789,11 +799,16 @@ export default function SubmitTicket() {
                 placeholder="Add a comment..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
+                disabled={!isExistingTicketLoaded}
               ></textarea>
 
               {/* Submit Button */}
               <div className="flex flex-row justify-between">
-                <Button variant="primary" onClick={addComment}>
+                <Button
+                  variant="primary"
+                  onClick={addComment}
+                  disabled={!isExistingTicketLoaded}
+                >
                   <MessageCircle className="w-5 h-5" />
                 </Button>
                 {/* File Upload Input */}
@@ -803,6 +818,7 @@ export default function SubmitTicket() {
                     accept="image/*"
                     onChange={handleImageChange}
                     className="file:bg-blue-50 file:text-blue-700 file:px-4 file:py-2 file:rounded-lg file:border-0 hover:file:bg-blue-100"
+                    disabled={!isExistingTicketLoaded}
                   />
                   {imagePreview && (
                     <div className="relative ">
