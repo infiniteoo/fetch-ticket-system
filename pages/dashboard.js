@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { Select } from "@/components/ui/Select";
 import ClipLoader from "react-spinners/ClipLoader"; // ✅ Import Spinner
 import { toast } from "react-hot-toast";
+import { useUser } from "@clerk/nextjs";
 
 import {
   RefreshCw,
@@ -21,6 +22,7 @@ import { useTheme } from "next-themes";
 import supabase from "@/lib/supabaseClient";
 
 export default function Dashboard() {
+  const { user } = useUser(); // Get logged-in user data
   const router = useRouter();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false); // ✅ Track loading state
@@ -394,7 +396,7 @@ export default function Dashboard() {
   async function addComment() {
     if (!newComment.trim() && !selectedImage) return;
 
-    const commenterName = "Customer Service Rep";
+    const commenterName = user ? user.fullName : "Customer Service Rep"; // Fallback name
     let imageUrl = null;
 
     if (selectedImage) {
@@ -567,7 +569,7 @@ export default function Dashboard() {
         updatedStatus !== selectedTicket.status ||
         updatedPriority !== selectedTicket.priority
       ) {
-        const commenterName = "Customer Service Rep";
+        const commenterName = user ? user.fullName : "Customer Service Rep"; // Fallback name
         const localTimestamp = new Date().toLocaleString("en-US", {
           timeZone: "America/Los_Angeles",
         });
@@ -1083,12 +1085,14 @@ export default function Dashboard() {
       {showClosePopup && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-1/3">
-            <h2 className="text-xl font-bold mb-4 text-black">Close Ticket</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-200">
+              Close Ticket
+            </h2>
 
             {/* Reason Dropdown */}
-            <label className="text-black font-semibold">Reason</label>
+            <label className="text-gray-100 font-semibold">Reason</label>
             <select
-              className="border p-2 rounded w-full text-black mb-3"
+              className="border p-2 rounded w-full text-gray-600 mb-3"
               value={closeReason}
               onChange={(e) => setCloseReason(e.target.value)}
             >
@@ -1101,13 +1105,15 @@ export default function Dashboard() {
             </select>
 
             {/* Sub-Reason Dropdown */}
-            <label className="text-black font-semibold">Sub-Reason</label>
+            <label className="text-gray-100 font-semibold">Sub-Reason</label>
             <select
               className="border p-2 rounded w-full text-black mb-3"
               value={closeSubReason}
               onChange={(e) => setCloseSubReason(e.target.value)}
             >
-              <option value="">Select a sub-reason</option>
+              <option value="" className="">
+                Select a sub-reason
+              </option>
               <option value="Issue Fixed">Issue Fixed</option>
               <option value="Customer No Response">Customer No Response</option>
               <option value="Wrong Ticket">Wrong Ticket</option>
@@ -1115,7 +1121,9 @@ export default function Dashboard() {
             </select>
 
             {/* Additional Message */}
-            <label className="text-black font-semibold">Additional Notes</label>
+            <label className="text-gray-100 font-semibold">
+              Additional Notes
+            </label>
             <textarea
               className="w-full p-2 border rounded text-black min-h-[100px] mb-4"
               placeholder="Provide more details..."

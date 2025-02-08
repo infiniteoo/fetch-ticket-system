@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { useRouter } from "next/router";
 import { toast } from "react-hot-toast";
+import { useUser } from "@clerk/nextjs";
 
 import {
   RefreshCw,
@@ -20,6 +21,7 @@ const supabase = createClient(
 );
 
 export default function SubmitTicket() {
+  const { user } = useUser(); // Get logged-in user data
   const router = useRouter();
   const { issue_id } = router.query; // Get issue ID from URL query
   const [comments, setComments] = useState([]);
@@ -89,7 +91,11 @@ export default function SubmitTicket() {
   async function addComment() {
     if (!newComment.trim() && !selectedImage) return;
 
-    const commenterName = form.name || "Anonymous";
+    if (!form.name) {
+      form.name = "Anonymous";
+    }
+
+    const commenterName = user ? user.fullName : form.name; // Fallback name
     let imageUrl = null;
 
     if (selectedImage) {
