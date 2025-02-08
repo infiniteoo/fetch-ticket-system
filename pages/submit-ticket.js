@@ -187,7 +187,7 @@ export default function SubmitTicket() {
           </tbody>
         </table>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
@@ -288,7 +288,7 @@ export default function SubmitTicket() {
         <h3>📝 Changes Made</h3>
         <p>${commentText}</p>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
@@ -445,7 +445,7 @@ export default function SubmitTicket() {
             </tbody>
           </table>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
