@@ -14,7 +14,14 @@ function MyApp({ Component, pageProps }) {
       {/* Navbar Container */}
       <div className="flex items-center justify-between p-4 bg-gray-900 text-white shadow-lg">
         {/* Left Side: App Name (optional) */}
-        <h1 className="text-lg font-bold">Fetch Ticket System 🎟️</h1>
+        {/* insert gxo_logo a plus sign and intel_logo */}
+        <div className="flex items-center space-x-4">
+          <img
+            src="/gxo_logo.png"
+            alt="gxo_logo"
+            className="h-8 w-16 rounded-xl"
+          />
+        </div>
 
         {/* Right Side: Clerk Sign-In / User Button */}
         <div className="ml-auto flex items-center space-x-4">

@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select";
 import ClipLoader from "react-spinners/ClipLoader"; // ✅ Import Spinner
 import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
+import DashboardHeader from "@/components/DashboardHeader";
 
 import {
   RefreshCw,
@@ -706,15 +707,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0 }}
-        >
-          <h1 className="text-2xl font-bold">Fetch Ticket System 🎟️</h1>
-        </motion.div>
-      </div>
+      <DashboardHeader />
 
       {/* Ticket Queue (Fixed Size with Scroll) */}
 
