@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { tsParticles } from "@tsparticles/engine";
 
 export default function Home() {
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { useRouter } from "next/router";
+import { toast } from "react-hot-toast";
 
 import {
   RefreshCw,
@@ -180,7 +181,7 @@ export default function SubmitTicket() {
           </tbody>
         </table>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
@@ -250,10 +251,11 @@ export default function SubmitTicket() {
       .eq("issue_id", issue_id)
       .single();
     if (error) {
-      alert("Error loading ticket");
+      toast.error("❌ Error loading ticket. Please try again.");
     } else {
       setForm(data);
       console.log("loaded ticket", data);
+      toast.success("✅ Ticket loaded successfully!");
       setIsExistingTicketLoaded(true);
     }
 
@@ -280,7 +282,7 @@ export default function SubmitTicket() {
         <h3>📝 Changes Made</h3>
         <p>${commentText}</p>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
@@ -328,10 +330,10 @@ export default function SubmitTicket() {
 
     if (fetchError) {
       console.error("Error fetching ticket before update:", fetchError);
-      alert("Error updating ticket");
+      toast.error("❌ Error updating ticket. Please try again.");
       return;
     }
-
+    toast.success("✅ Successfully updating ticket.");
     // Compare each field and add comments for changes
     Object.keys(form).forEach((key) => {
       if (form[key] !== currentTicket[key]) {
@@ -364,11 +366,11 @@ export default function SubmitTicket() {
 
     if (updateError) {
       console.error("Error updating ticket:", updateError);
-      alert("Error updating ticket");
+      toast.error("❌ Error updating ticket. Please try again.");
     } else {
       await fetchComments(form.id); // Refresh comments
       await sendUpdateEmail(commentText); // Send an email with the changes
-      alert("Ticket updated successfully!");
+      toast.success("✅ Ticket updated successfully!");
     }
   };
 
@@ -376,13 +378,16 @@ export default function SubmitTicket() {
     e.preventDefault();
     const issue_id = await generateIssueID();
 
+    // set status to new request
+    form.status = "New Request";
+
     // Insert ticket into Supabase
     const { error } = await supabase
       .from("tickets")
       .insert([{ ...form, issue_id, created_at: new Date().toLocaleString() }]);
 
     if (error) {
-      alert("Error submitting ticket");
+      toast.error("❌ Error submitting ticket. Please try again.");
       return;
     }
 
@@ -434,7 +439,7 @@ export default function SubmitTicket() {
             </tbody>
           </table>
         <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${fo.issue_id}" target="_blank" rel="noopener noreferrer">
         <button style="background-color: #007bff; color: white; padding: 10px 20px;
                       border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
           🔍 Open My Ticket
@@ -464,7 +469,7 @@ export default function SubmitTicket() {
       console.error("❌ Email sending failed:", emailResult.error);
     }
 
-    alert("🎉 Ticket submitted successfully, and email has been sent!");
+    toast.success("🎉 Ticket submitted successfully, and email has been sent!");
 
     // Reset form
     setForm({
@@ -551,7 +556,7 @@ export default function SubmitTicket() {
                   "Low",
                   "Not Assigned",
                   "Factory Constraint",
-                  "Non-Factory Operation",
+                  "Non-Factory",
                 ].map((option) => (
                   <option key={option} value={option}>
                     {option}

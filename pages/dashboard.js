@@ -1,4 +1,5 @@
 "use client";
+import { motion } from "framer-motion";
 import { LuClipboard } from "react-icons/lu";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -6,6 +7,9 @@ import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Select } from "@/components/ui/Select";
+import ClipLoader from "react-spinners/ClipLoader"; // ✅ Import Spinner
+import { toast } from "react-hot-toast";
+
 import {
   RefreshCw,
   Filter,
@@ -19,6 +23,7 @@ import supabase from "@/lib/supabaseClient";
 export default function Dashboard() {
   const router = useRouter();
   const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(false); // ✅ Track loading state
   const { issue_id } = router.query; // Get issue ID from URL query
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedImage, setSelectedImage] = useState(null); // Stores the selected file
@@ -62,10 +67,11 @@ export default function Dashboard() {
       .eq("issue_id", issue_id)
       .single();
     if (error) {
-      alert("Error loading ticket");
+      toast.error("❌ Error loading ticket. Please try again.");
     } else {
       setForm(data);
       setIsExistingTicketLoaded(true);
+      toast.success("✅ Ticket loaded successfully!");
     }
   }
 
@@ -127,7 +133,7 @@ export default function Dashboard() {
       .eq("id", selectedTicket.id);
 
     if (!error) {
-      alert("Ticket closed successfully!");
+      toast.success("✅ Ticket closed successfully!");
       // Step 3: Fetch updated comments
       await fetchComments(selectedTicket.id);
 
@@ -187,7 +193,7 @@ export default function Dashboard() {
       closeTicketDetails(); // Close details view
     } else {
       console.error("Error closing ticket:", error);
-      alert("Error closing ticket. Please try again.");
+      toast.error("❌ Error closing ticket. Please try again.");
     }
   }
 
@@ -522,12 +528,14 @@ export default function Dashboard() {
   }
 
   async function fetchTickets() {
+    setLoading(true); // Start loading
     let { data, error } = await supabase.from("tickets").select("*");
     if (!error) {
       setTickets(data);
     } else {
       console.error("Error fetching tickets:", error);
     }
+    setLoading(false); // Stop loading
   }
 
   useEffect(() => {
@@ -697,144 +705,129 @@ export default function Dashboard() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Fetch Ticket System 🎟️</h1>
-        <div className="flex gap-2 text-black">
-          <Select
-            className="text-black"
-            options={["All", "New", "Open", "Closed"]}
-            value={searchParams.status} // ✅ Now properly controlled
-            onChange={(e) =>
-              setSearchParams((prev) => ({ ...prev, status: e.target.value }))
-            } // ✅ Updates correctly
-          />
-
-          {/* Search Input */}
-          <input
-            type="text"
-            placeholder="Filter tickets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="border px-3 py-2 rounded-lg text-black"
-          />
-
-          <Button onClick={resetHeader}>
-            <RefreshCw className="w-5 h-5 mr-2" />
-          </Button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.0 }}
+        >
+          <h1 className="text-2xl font-bold">Fetch Ticket System 🎟️</h1>
+        </motion.div>
       </div>
 
       {/* Ticket Queue (Fixed Size with Scroll) */}
-      <div className="border rounded-lg p-4 shadow-lg max-w-full">
-        <div className="overflow-y-auto min-h-[400px] max-h-[600px]">
-          <Table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-100 dark:bg-gray-800 text-left">
-                {[
-                  { key: "issue_id", label: "Issue ID" },
-                  { key: "name", label: "Name" },
-                  { key: "wiings_order", label: "Order #" },
-                  { key: "part_number", label: "Part #" },
-                  { key: "tool_id", label: "Tool ID" },
-                  { key: "problem_statement", label: "Statement" },
-                  { key: "status", label: "Status" },
-                  { key: "priority", label: "Priority" },
-                  { key: "updated_at", label: "Last Updated" },
-                ].map((col) => (
-                  <th
-                    key={col.key}
-                    className="p-3 cursor-pointer hover:text-blue-500"
-                    onClick={() => handleSort(col.key)}
-                  >
-                    {col.label}{" "}
-                    {sortConfig.key === col.key
-                      ? sortConfig.direction === "asc"
-                        ? "⬆️"
-                        : "⬇️"
-                      : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {getFilteredTickets().length > 0 ? (
-                getFilteredTickets().map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm"
-                    onClick={() => openTicketDetails(ticket)}
-                  >
-                    <td className="p-3">{ticket.issue_id}</td>
-                    <td className="p-3">{ticket.name}</td>
-                    <td className="p-3">{ticket.wiings_order}</td>
-                    <td className="p-3">{ticket.part_number}</td>
-                    <td className="p-3">{ticket.tool_id}</td>
-                    <td className="p-3">
-                      {ticket.problem_statement.length > 20
-                        ? ticket.problem_statement.substring(0, 20) + "..."
-                        : ticket.problem_statement}
-                    </td>
-                    <td className="p-3 text-center">
-                      <span
-                        className={`${getStatusClass(
-                          ticket.status
-                        )} p-3 min-w-[200px] whitespace-nowrap inline-block text-center`}
-                      >
-                        {ticket.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <span
-                        className={`${getPriorityClass(
-                          ticket.priority
-                        )} p-3 min-w-[100px] whitespace-nowrap inline-block text-center`}
-                      >
-                        {ticket.priority}
-                      </span>
-                    </td>
 
-                    {/*   <td className="p-3">
-                      <span className={getPriorityClass(ticket.priority)}>
-                        {ticket.priority}
-                      </span>
-                    </td> */}
-                    <td className="p-3">
+      <div className="border rounded-lg p-4 shadow-lg max-w-full">
+        <div className="overflow-y-auto min-h-[450px] max-h-[450px]">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <ClipLoader color="#007bff" size={50} /> {/* ✅ Show Spinner */}
+            </div>
+          ) : (
+            <Table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100 dark:bg-gray-800 text-left">
+                  {[
+                    { key: "issue_id", label: "Issue ID" },
+                    { key: "name", label: "Name" },
+                    { key: "wiings_order", label: "Order #" },
+                    { key: "part_number", label: "Part #" },
+                    { key: "tool_id", label: "Tool ID" },
+                    { key: "problem_statement", label: "Statement" },
+                    { key: "status", label: "Status" },
+                    { key: "priority", label: "Priority" },
+                    { key: "updated_at", label: "Last Updated" },
+                  ].map((col) => (
+                    <th
+                      key={col.key}
+                      className="p-3 cursor-pointer hover:text-blue-500"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}{" "}
+                      {sortConfig.key === col.key
+                        ? sortConfig.direction === "asc"
+                          ? "⬆️"
+                          : "⬇️"
+                        : ""}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredTickets().length > 0 ? (
+                  getFilteredTickets().map((ticket) => (
+                    <tr
+                      key={ticket.id}
+                      className="border-t hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm"
+                      onClick={() => openTicketDetails(ticket)}
+                    >
+                      <td className="p-3">{ticket.issue_id}</td>
+                      <td className="p-3">{ticket.name}</td>
+                      <td className="p-3">{ticket.wiings_order}</td>
+                      <td className="p-3">{ticket.part_number}</td>
+                      <td className="p-3">{ticket.tool_id}</td>
                       <td className="p-3">
-                        {ticket.updated_at
-                          ? new Date(ticket.updated_at).toLocaleString(
-                              "en-US",
-                              {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false, // Uses 24-hour format, change to `true` for AM/PM format
-                              }
-                            )
-                          : new Date(ticket.created_at).toLocaleString(
-                              "en-US",
-                              {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              }
-                            )}
+                        {ticket.problem_statement.length > 20
+                          ? ticket.problem_statement.substring(0, 20) + "..."
+                          : ticket.problem_statement}
                       </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`${getStatusClass(
+                            ticket.status
+                          )} p-3 min-w-[200px] whitespace-nowrap inline-block text-center`}
+                        >
+                          {ticket.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`${getPriorityClass(
+                            ticket.priority
+                          )} p-3 min-w-[100px] whitespace-nowrap inline-block text-center`}
+                        >
+                          {ticket.priority}
+                        </span>
+                      </td>
+
+                      <td className="p-3">
+                        <td className="p-3">
+                          {ticket.updated_at
+                            ? new Date(ticket.updated_at).toLocaleString(
+                                "en-US",
+                                {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  year: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false, // Uses 24-hour format, change to `true` for AM/PM format
+                                }
+                              )
+                            : new Date(ticket.created_at).toLocaleString(
+                                "en-US",
+                                {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  year: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                }
+                              )}
+                        </td>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-3 text-center text-gray-500" colSpan="8">
+                      No tickets available
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="p-3 text-center text-gray-500" colSpan="8">
-                    No tickets available
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                )}
+              </tbody>
+            </Table>
+          )}
         </div>
       </div>
 
@@ -993,7 +986,9 @@ export default function Dashboard() {
 
             {/* Right Side: Comments Section */}
             <div className="w-1/2 flex flex-col">
-              <h3 className="text-2xl font-bold mb-4">Comments</h3>
+              <h3 className="text-2xl font-bold mb-4 text-gray-300">
+                Comments
+              </h3>
 
               {/* Comment Thread (Scrollable) */}
               <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[400px]">
@@ -1166,6 +1161,29 @@ export default function Dashboard() {
             }}
           >
             <RefreshCw className="w-5 h-5" />
+          </Button>
+        </div>
+        <div className="flex gap-2 text-black">
+          <Select
+            className="text-black"
+            options={["All", "New", "Open", "Closed"]}
+            value={searchParams.status} // ✅ Now properly controlled
+            onChange={(e) =>
+              setSearchParams((prev) => ({ ...prev, status: e.target.value }))
+            } // ✅ Updates correctly
+          />
+
+          {/* Search Input */}
+          <input
+            type="text"
+            placeholder="Filter tickets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="border px-3 py-2 rounded-lg text-black"
+          />
+
+          <Button onClick={resetHeader}>
+            <RefreshCw className="w-5 h-5 " />
           </Button>
         </div>
       </div>
