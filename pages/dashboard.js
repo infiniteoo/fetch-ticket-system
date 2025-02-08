@@ -709,6 +709,38 @@ export default function Dashboard() {
     }
   }
 
+  const copyAllTicketDetails = () => {
+    if (!selectedTicket) return;
+
+    const detailsText = `
+    Issue ID: ${selectedTicket.issue_id}
+    Name: ${selectedTicket.name}
+    Problem Statement: ${selectedTicket.problem_statement}
+    Tool ID: ${selectedTicket.tool_id}
+    Wiings Order: ${selectedTicket.wiings_order}
+    IPN: ${selectedTicket.part_number}
+    Fab Submitted As: ${selectedTicket.fab_submitted_as}
+    Area: ${selectedTicket.area}
+    Supplier: ${selectedTicket.supplier}
+    Status: ${selectedTicket.status}
+    Priority: ${selectedTicket.priority}
+    Last Updated: ${new Date(selectedTicket.updated_at).toLocaleString(
+      "en-US",
+      {
+        month: "2-digit",
+        day: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }
+    )}
+    `;
+
+    navigator.clipboard.writeText(detailsText.trim());
+    toast.success("📋 All ticket details copied!");
+  };
+
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <DashboardHeader />
@@ -833,11 +865,11 @@ export default function Dashboard() {
       {/* Ticket Details Popup */}
       {selectedTicket && (
         <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center"
+          className="fixed inset-0 bg-gray-900 bg-opacity-75 flex justify-center items-center"
           onClick={closeTicketDetails}
         >
           <div
-            className="bg-white dark:bg-gray-800 p-10 rounded-lg shadow-lg max-w-6xl w-3/4 min-h-[600px] max-h-[600px] flex gap-8 relative"
+            className="bg-white dark:bg-gray-800 p-10 rounded-lg shadow-lg max-w-6xl w-3/4 min-h-[600px] max-h-[600px] flex gap-8 relative border-gray-300 border-2"
             onClick={(e) => e.stopPropagation()} // Prevents closing when clicking inside
           >
             {/* Close Button */}
@@ -850,9 +882,21 @@ export default function Dashboard() {
 
             {/* Left Side: Ticket Details (Styled) */}
             <div className="w-1/2 flex flex-col">
-              <h2 className="text-2xl font-bold mb-4">
-                {selectedTicket.issue_id}, {selectedTicket.name}
-              </h2>
+              <div className="flex flex-row justify-between">
+                <h2 className="text-2xl font-bold mb-4">
+                  {selectedTicket.issue_id}, {selectedTicket.name}
+                </h2>
+                <button
+                  onClick={copyAllTicketDetails}
+                  className="text-gray-600 hover:text-black flex items-center gap-2"
+                  title="Copy All Ticket Details"
+                >
+                  <LuClipboard size={24} />
+                  <span className="text-sm font-semibold text-gray-400">
+                    Copy All
+                  </span>
+                </button>
+              </div>
 
               {/* Ticket Information */}
               <div className="flex flex-col bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[400px] overflow-y-auto">
