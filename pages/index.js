@@ -17,8 +17,8 @@ export default function Home() {
       </Link>
 
       <p className="mt-5 text-gray-600">
-        Disclaimer: This website is strictly for demonstration purposes only and
-        is in no way affiliated with GXO or Intel in any capacity.
+        ⚠️ Disclaimer: This website is strictly for demonstration purposes only
+        and is in no way affiliated with GXO or Intel in any capacity. ⚠️
       </p>
     </div>
   );
