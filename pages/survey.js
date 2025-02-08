@@ -82,12 +82,14 @@ export default function Survey() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-lg">
-      <h1 className="text-2xl font-bold text-center mb-4">📝 Ticket Survey</h1>
+      <h1 className="text-2xl font-bold text-center mb-4 text-gray-500">
+        📝 Ticket Survey
+      </h1>
       <p className="text-gray-600 text-center mb-6">
         Rate your experience with our support team
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 text-gray-600">
         {[
           { label: "Ease of Use", key: "easeOfUse" },
           { label: "Response Time", key: "responseTime" },
