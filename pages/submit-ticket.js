@@ -340,17 +340,6 @@ export default function SubmitTicket() {
     }
 
     console.log("Ticket Insert Result:", data);
-
-    /*   const { data, error } = await supabase
-      .from("tickets")
-      .insert([{ ...form, issue_id, created_at: new Date().toLocaleString() }]);
-
-    if (error) {
-      toast.error("❌ Error submitting ticket. Please try again.");
-      return;
-    }
- */
-    console.log("Ticket Insert Result:", data);
     // get the id of the newly created ticket
     const newTicketId = data[0].issue_id;
     console.log("New Issue ID", newTicketId);
@@ -360,7 +349,7 @@ export default function SubmitTicket() {
     setComments(newComments);
     let commentSection = [];
     // check to se if comments has any data
-    if (comments) {
+    if (comments && comments.length > 0) {
       commentSection = comments
         .map(
           (c) => `
