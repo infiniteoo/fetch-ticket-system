@@ -16,6 +16,7 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { RefreshCw, MessageCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import supabase from "@/lib/supabaseClient";
+import Image from "next/image";
 
 export default function Dashboard() {
   const { user } = useUser(); // Get logged-in user data
@@ -1002,11 +1003,15 @@ export default function Dashboard() {
                     />
                     {imagePreview && (
                       <div className="relative ">
-                        <img
+                        <Image
                           src={imagePreview}
                           alt="Preview"
+                          height={64}
+                          width={64}
                           className="w-16 h-16 rounded-lg border"
+                          priority // Load faster for LCP optimization
                         />
+
                         <button
                           onClick={() => {
                             setSelectedImage(null);
@@ -1092,10 +1097,13 @@ export default function Dashboard() {
           className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center"
           onClick={() => setEnlargedImage(null)}
         >
-          <img
+          <Image
             src={enlargedImage}
             alt="Enlarged"
+            height={600}
+            width={800}
             className="max-w-3xl max-h-3xl rounded-lg shadow-lg"
+            priority // Load faster for LCP optimization
           />
         </div>
       )}

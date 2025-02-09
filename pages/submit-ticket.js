@@ -5,11 +5,21 @@ import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import { MessageCircle, Search } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import teamsLogo from "../public/microsoft-teams.png";
+import Image from "next/image";
+
 import {
   generateNewCommentCustomer,
   generateUpdateTicketCustomer,
   generateNewTicket,
 } from "@/lib/emailTemplates";
+
+import {
+  areaDefinitions,
+  defaultForm,
+  statusDefinitions,
+  supplierDefinitions,
+} from "@/lib/defaultForm";
 
 import { fetchComments, generateIssueID } from "@/utils/commentUtils";
 
@@ -19,7 +29,7 @@ const supabase = createClient(
 );
 
 export default function SubmitTicket() {
-  const { user } = useUser(); // Get logged-in user data
+  const { user } = useUser(); // Get logged-in user data from Clerk
   const router = useRouter();
   const { issue_id } = router.query; // Get issue ID from URL query
   const [comments, setComments] = useState([]);
@@ -29,19 +39,7 @@ export default function SubmitTicket() {
   const [enlargedImage, setEnlargedImage] = useState(null); // Image for popup
   const [searchQuery, setSearchQuery] = useState("");
   const [isExistingTicketLoaded, setIsExistingTicketLoaded] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    problem_statement: "",
-    priority: "Medium",
-    fab_submitted_as: "",
-    tool_id: "",
-    wiings_order: "",
-    part_number: "",
-    status: "New Request",
-    area: "Buyer/Planner",
-    supplier: "AMAT",
-    email: "",
-  });
+  const [form, setForm] = useState(defaultForm);
 
   useEffect(() => {
     if (issue_id) {
@@ -377,19 +375,7 @@ export default function SubmitTicket() {
     toast.success("🎉 Ticket submitted successfully, and email has been sent!");
 
     // Reset form
-    setForm({
-      name: "",
-      problem_statement: "",
-      priority: "Not Assigned",
-      fab_submitted_as: "",
-      tool_id: "",
-      wiings_order: "",
-      part_number: "",
-      status: "New Request",
-      area: "Buyer/Planner",
-      supplier: "AMAT",
-      email: "",
-    });
+    setForm(defaultForm);
   };
 
   return (
@@ -524,34 +510,7 @@ export default function SubmitTicket() {
                 onChange={handleChange}
                 className="border p-2 rounded"
               >
-                {[
-                  "New Request",
-                  "In Progress",
-                  "OM Escalated",
-                  "Waiting 3PL",
-                  "Closed",
-                  "Canceled By User",
-                  "Re-Opened",
-                  "Waiting Buyer/Supplier",
-                  "Waiting Customer",
-                  "Waiting Elevator Repair",
-                  "Waiting on IT",
-                  "Waiting Tool Move",
-                  "Exceptions / Variants",
-                  "Waiting Chemicals",
-                  "Waiting Count/Verify",
-                  "Waiting Delivery Confirmation",
-                  "Waiting Distribution",
-                  "Waiting ePart",
-                  "Waiting Inbound",
-                  "Waiting IMO",
-                  "Waiting Inv Control",
-                  "Waiting Put-away",
-                  "Waiting Returns",
-                  "Waiting Shipping",
-                  "Waiting Si",
-                  "Waiting Stores",
-                ].map((option) => (
+                {statusDefinitions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -566,26 +525,7 @@ export default function SubmitTicket() {
                 onChange={handleChange}
                 className="border p-2 rounded"
               >
-                {[
-                  "Buyer/Planner",
-                  "Dielectrics",
-                  "Diffusion",
-                  "Etch - Dry",
-                  "Etch - Wet",
-                  "IMO",
-                  "Implant",
-                  "Litho",
-                  "Metals",
-                  "Planar",
-                  "RA4 SORT",
-                  "RA4 STO",
-                  "RA4 WLA",
-
-                  "Subfab",
-                  "Thin Films",
-                  "TSV",
-                  "VSE",
-                ].map((option) => (
+                {areaDefinitions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -600,28 +540,7 @@ export default function SubmitTicket() {
                 onChange={handleChange}
                 className="border p-2 rounded"
               >
-                {[
-                  "AMAT",
-                  "ASM",
-                  "ASML",
-                  "DSV/UTI",
-                  "Ebara",
-                  "Edwards",
-                  "Hitachi",
-                  "JX Nippon",
-                  "KLA",
-                  "LAM",
-                  "MSR",
-                  "Nikon",
-                  "Not Listed",
-                  "Pentagon",
-                  "Praxair/Linde",
-                  "Quantum Clean",
-                  "Screen",
-                  "TEl",
-                  "UPPRO",
-                  "VWR",
-                ].map((option) => (
+                {supplierDefinitions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -662,10 +581,13 @@ export default function SubmitTicket() {
 
                     {/* Display Image (if exists) */}
                     {comment.image_url && (
-                      <img
+                      <Image
                         src={comment.image_url}
                         alt="Comment attachment"
+                        height={64}
+                        width={64}
                         className="mt-2 w-16 h-16 object-cover cursor-pointer rounded-lg border"
+                        priority // Load faster for LCP optimization
                         onClick={() => setEnlargedImage(comment.image_url)}
                       />
                     )}
@@ -711,11 +633,15 @@ export default function SubmitTicket() {
                   />
                   {imagePreview && (
                     <div className="relative ">
-                      <img
+                      <Image
                         src={imagePreview}
                         alt="Preview"
                         className="w-16 h-16 rounded-lg border"
+                        height={64}
+                        width={64}
+                        priority // Load faster for LCP optimization
                       />
+
                       <button
                         onClick={() => {
                           setSelectedImage(null);
@@ -734,10 +660,13 @@ export default function SubmitTicket() {
                     className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center"
                     onClick={() => setEnlargedImage(null)}
                   >
-                    <img
+                    <Image
                       src={enlargedImage}
                       alt="Enlarged"
                       className="max-w-3xl max-h-3xl rounded-lg shadow-lg"
+                      height={600}
+                      width={800}
+                      priority // Load faster for LCP optimization
                     />
                   </div>
                 )}
@@ -752,10 +681,14 @@ export default function SubmitTicket() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <img
-                    src="./microsoft-teams.png"
+                  <Image
+                    src={teamsLogo}
+                    alt="Join Teams Chatroom"
                     className="w-[40px] h-[40px]"
-                  ></img>
+                    height={40}
+                    width={40}
+                    priority // Load faster for LCP optimization
+                  />
                 </a>
               </div>
             </div>
