@@ -11,7 +11,7 @@ import {
   generateNewTicket,
 } from "@/lib/emailTemplates";
 
-import { fetchComments } from "@/utils/commentUtils";
+import { fetchComments, generateIssueID } from "@/utils/commentUtils";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -186,19 +186,6 @@ export default function SubmitTicket() {
     setImagePreview(null);
   }
 
-  const generateIssueID = async () => {
-    const lastName = form.name.split(" ").pop() || "User";
-    const { data, error } = await supabase
-      .from("tickets")
-      .select("id")
-      .order("id", { ascending: false })
-      .limit(1);
-    const newId = data?.[0]?.id
-      ? String(data[0].id + 1).padStart(5, "0")
-      : "00001";
-    return `${lastName}-${newId}`;
-  };
-
   const loadExistingTicket = async (issue_id) => {
     if (!issue_id) {
       toast.error("❌ Please enter a valid ticket number.");
@@ -321,7 +308,7 @@ export default function SubmitTicket() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const issue_id = await generateIssueID();
+    const issue_id = await generateIssueID(form, supabase);
 
     // set status to new request
     form.status = "New Request";
