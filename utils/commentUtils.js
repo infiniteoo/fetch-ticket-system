@@ -13,7 +13,7 @@ export async function fetchComments(ticketId, supabase) {
   }
 }
 
-export const generateIssueID = async (form) => {
+export const generateIssueID = async (form, supabase) => {
   const lastName = form.name.split(" ").pop() || "User";
   const { data, error } = await supabase
     .from("tickets")
