@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { useRouter } from "next/router";
+import { createClient } from "@supabase/supabase-js";
 import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
-
-import {
-  RefreshCw,
-  Filter,
-  Trash,
-  CheckSquare,
-  MessageCircle,
-  Search,
-} from "lucide-react";
+import { MessageCircle, Search } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import {
+  generateNewCommentCustomer,
+  generateUpdateTicketCustomer,
+  generateNewTicket,
+} from "@/lib/emailTemplates";
+
+import { fetchComments } from "@/utils/commentUtils";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -87,6 +85,7 @@ export default function SubmitTicket() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
   // Add comment (handles both text & image)
   async function addComment() {
     if (!newComment.trim() && !selectedImage) return;
@@ -129,7 +128,8 @@ export default function SubmitTicket() {
     }
 
     // 🔥 Fetch fresh comments **AFTER** inserting new comment
-    await fetchComments(form.id);
+    let newComments = fetchComments(form.id, supabase);
+    setComments(newComments);
 
     // 💡 Get fresh comments **IMMEDIATELY** after fetchComments
     let { data: latestComments, error: fetchError } = await supabase
@@ -142,6 +142,7 @@ export default function SubmitTicket() {
       console.error("Error fetching updated comments:", fetchError);
       return;
     }
+    setComments(latestComments);
 
     console.log("📢 Latest Comments:", latestComments);
 
@@ -160,43 +161,7 @@ export default function SubmitTicket() {
       : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
 
     // Construct email HTML
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
-        <p>Hi <strong>${form.name}</strong>,</p>
-        <p>Your support ticket has received a new comment. Below are the details:</p>
-        <hr>
-        <p><strong>Issue ID:</strong> ${form.issue_id}</p>
-        <p><strong>Problem Statement:</strong> ${form.problem_statement}</p>
-        <p><strong>Priority:</strong> ${form.priority}</p>
-        <p><strong>Status:</strong> ${form.status}</p>
-        <p><strong>Tool ID:</strong> ${form.tool_id}</p>
-        <p><strong>Area:</strong> ${form.area}</p>
-        <p><strong>Supplier:</strong> ${form.supplier}</p>
-        <h3>📝 New Comments</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#0073e6;color:white;">
-              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-              <th style="padding:10px;border:1px solid #ddd;">Message</th>
-              <th style="padding:10px;border:1px solid #ddd;">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${commentSection}
-          </tbody>
-        </table>
-        <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-      <hr>
-        <p>Thank you for using Fetch Ticket System! 🎟️</p>
-      </div>
-    `;
+    const emailHtml = generateNewCommentCustomer(form, commentSection);
 
     // Send email
     const emailResponse = await fetch("/api/send-email", {
@@ -219,21 +184,6 @@ export default function SubmitTicket() {
     setNewComment("");
     setSelectedImage(null);
     setImagePreview(null);
-  }
-
-  async function fetchComments(ticketId) {
-    console.log("Fetching comments for ticket:", ticketId);
-    let { data, error } = await supabase
-      .from("comments")
-      .select("text, created_at, commenter_name, image_url") // ✅ Include image_url
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: false }); // Newest first
-
-    if (!error) {
-      setComments(data);
-    } else {
-      console.error("Error fetching comments:", error);
-    }
   }
 
   const generateIssueID = async () => {
@@ -270,9 +220,10 @@ export default function SubmitTicket() {
       setForm(data);
       setIsExistingTicketLoaded(true);
       toast.success("✅ Ticket loaded successfully!");
-
+      console.log(data.id);
       // Load comments only if ticket exists
-      await fetchComments(data.id);
+      let newComments = await fetchComments(data.id, supabase);
+      setComments(newComments);
     } catch (err) {
       console.error("Unexpected error loading ticket:", err);
       toast.error("❌ Unexpected error. Please try again.");
@@ -282,32 +233,7 @@ export default function SubmitTicket() {
   const sendUpdateEmail = async (commentText) => {
     if (!commentText.trim()) return; // Skip if no changes
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
-        <p>Hi <strong>${form.name}</strong>,</p>
-        <p>Your support ticket has been updated. Below are the details:</p>
-        <hr>
-        <p><strong>Issue ID:</strong> ${form.issue_id}</p>
-        <p><strong>Problem Statement:</strong> ${form.problem_statement}</p>
-        <p><strong>Priority:</strong> ${form.priority}</p>
-        <p><strong>Status:</strong> ${form.status}</p>
-        <p><strong>Tool ID:</strong> ${form.tool_id}</p>
-        <p><strong>Area:</strong> ${form.area}</p>
-        <p><strong>Supplier:</strong> ${form.supplier}</p>
-        <h3>📝 Changes Made</h3>
-        <p>${commentText}</p>
-        <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-      <hr>
-        <p>Thank you for using Fetch Ticket System! 🎟️</p>
-      </div>
-    `;
+    const emailHtml = generateUpdateTicketCustomer(form, commentText);
 
     const emailResponse = await fetch("/api/send-email", {
       method: "POST",
@@ -384,7 +310,10 @@ export default function SubmitTicket() {
       console.error("Error updating ticket:", updateError);
       toast.error("❌ Error updating ticket. Please try again.");
     } else {
-      await fetchComments(form.id); // Refresh comments
+      console.log("Ticket updated successfully:", form);
+      let newComments = await fetchComments(form.id, supabase);
+      setComments(newComments);
+      console.log("Comments after update:", newComments);
       await sendUpdateEmail(commentText); // Send an email with the changes
       toast.success("✅ Ticket updated successfully!");
     }
@@ -398,7 +327,21 @@ export default function SubmitTicket() {
     form.status = "New Request";
 
     // Insert ticket into Supabase
-    const { error } = await supabase
+    // we need to receive the new issue idea when we insert the ticket
+
+    const { data, error } = await supabase
+      .from("tickets")
+      .insert([{ ...form, issue_id, created_at: new Date().toLocaleString() }])
+      .select("*"); // ✅ Explicitly return inserted data
+
+    if (error) {
+      toast.error("❌ Error submitting ticket. Please try again.");
+      return;
+    }
+
+    console.log("Ticket Insert Result:", data);
+
+    /*   const { data, error } = await supabase
       .from("tickets")
       .insert([{ ...form, issue_id, created_at: new Date().toLocaleString() }]);
 
@@ -406,9 +349,15 @@ export default function SubmitTicket() {
       toast.error("❌ Error submitting ticket. Please try again.");
       return;
     }
+ */
+    console.log("Ticket Insert Result:", data);
+    // get the id of the newly created ticket
+    const newTicketId = data[0].issue_id;
+    console.log("New Issue ID", newTicketId);
 
     // get comments for ticket if they exist
-    await fetchComments(issue_id);
+    let newComments = await fetchComments(data[0].id, supabase);
+    setComments(newComments);
     let commentSection = [];
     // check to se if comments has any data
     if (comments) {
@@ -427,43 +376,7 @@ export default function SubmitTicket() {
       commentSection = `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
     }
 
-    // Construct email HTML
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Confirmation</h2>
-        <p>Hi <strong>${form.name}</strong>,</p>
-        <p>Your support ticket has been submitted successfully. Below are the details:</p>
-        <hr>
-        <p><strong>Issue ID:</strong> ${issue_id}</p>
-        <p><strong>Problem Statement:</strong> ${form.problem_statement}</p>
-        <p><strong>Priority:</strong> ${form.priority}</p>
-        <p><strong>Status:</strong> ${form.status}</p>
-        <p><strong>Tool ID:</strong> ${form.tool_id}</p>
-        <p><strong>Area:</strong> ${form.area}</p>
-        <p><strong>Supplier:</strong> ${form.supplier}</p>
-         <h3>Comments</h3>
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:#0073e6;color:white;">
-                <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-                <th style="padding:10px;border:1px solid #ddd;">Message</th>
-                <th style="padding:10px;border:1px solid #ddd;">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${commentSection}
-            </tbody>
-          </table>
-        <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${form.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-        <p>Thank you for using Fetch Ticket System! 🎟️</p>
-      </div>
-    `;
+    const emailHtml = generateNewTicket(form, commentSection, newTicketId);
 
     // Send email via API route
     const emailResponse = await fetch("/api/send-email", {
@@ -752,7 +665,7 @@ export default function SubmitTicket() {
 
             {/* Comment Thread (Scrollable) */}
             <div className="flex-1 overflow-y-auto bg-gray-100 p-4 rounded text-black min-h-[250px] max-h-[250px] max-w-[400px]">
-              {comments.length > 0 ? (
+              {comments && comments.length > 0 ? (
                 comments.map((comment, index) => (
                   <div
                     key={index}

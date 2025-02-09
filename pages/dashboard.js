@@ -1,24 +1,19 @@
 "use client";
-import { motion } from "framer-motion";
+
 import { LuClipboard } from "react-icons/lu";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Select } from "@/components/ui/Select";
-import ClipLoader from "react-spinners/ClipLoader"; // ✅ Import Spinner
+import ClipLoader from "react-spinners/ClipLoader";
 import { toast } from "react-hot-toast";
+import { generateNewCommentDashboard } from "@/lib/emailTemplates";
+import { generateCloseTicketEmail } from "@/lib/emailTemplates";
+import { generateUpdateTicketDashboard } from "@/lib/emailTemplates";
 import { useUser } from "@clerk/nextjs";
 import DashboardHeader from "@/components/DashboardHeader";
-
-import {
-  RefreshCw,
-  Filter,
-  Trash,
-  CheckSquare,
-  MessageCircle,
-} from "lucide-react";
+import { RefreshCw, MessageCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import supabase from "@/lib/supabaseClient";
 
@@ -33,7 +28,6 @@ export default function Dashboard() {
   const [imagePreview, setImagePreview] = useState(null); // Preview before upload
   const [enlargedImage, setEnlargedImage] = useState(null); // Image for popup
 
-  const [selectedTickets, setSelectedTickets] = useState([]);
   const [sortConfig, setSortConfig] = useState({
     key: "updated_at",
     direction: "desc",
@@ -143,38 +137,13 @@ export default function Dashboard() {
       // Step 4: Send an email notification
       const surveyLink = `${process.env.NEXT_PUBLIC_APP_URL}/survey?ticket_id=${selectedTicket.id}`;
 
-      const emailHtml = `
-  <div style="font-family: Arial, sans-serif; padding: 20px;">
-    <h2 style="color: #007bff;">🎟️ Fetch Ticket Update - Ticket Closed</h2>
-    <p>Hi <strong>${selectedTicket.name}</strong>,</p>
-    <p>Your support ticket has been closed. Below are the details:</p>
-    <hr>
-    <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
-    <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
-    <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
-    <p><strong>Status:</strong> Closed</p>
-    <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
-    <p><strong>Area:</strong> ${selectedTicket.area}</p>
-    <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
-    <hr>
-    <h3>🔒 Closure Details</h3>
-    <p><strong>Reason:</strong> ${closeReason}</p>
-    <p><strong>Sub-Reason:</strong> ${closeSubReason}</p>
-    <p><strong>Additional Notes:</strong> ${closeMessage}</p>
-
-    <hr>
-    <h3>📢 We'd Love Your Feedback!</h3>
-    <p>Help us improve by taking a quick survey about your experience:</p>
-    <a href="${surveyLink}" target="_blank">
-      <button style="background-color: #28a745; color: white; padding: 10px 20px;
-                    border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-        📝 Take the Survey
-      </button>
-    </a>
-    <hr>
-    <p>Thank you for using Fetch Ticket System! 🎟️</p>
-  </div>
-`;
+      const emailHtml = generateCloseTicketEmail(
+        selectedTicket,
+        closeReason,
+        closeSubReason,
+        closeMessage,
+        surveyLink
+      );
 
       const emailResponse = await fetch("/api/send-email", {
         method: "POST",
@@ -469,44 +438,10 @@ export default function Dashboard() {
           .join("")
       : `<tr><td colspan="3" style="text-align:center;">No comments yet</td></tr>`;
 
-    // Construct email HTML
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
-        <p>Hi <strong>${selectedTicket.name}</strong>,</p>
-        <p>Your support ticket has received a new comment. Below are the details:</p>
-        <hr>
-        <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
-        <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
-        <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
-        <p><strong>Status:</strong> ${selectedTicket.status}</p>
-        <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
-        <p><strong>Area:</strong> ${selectedTicket.area}</p>
-        <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
-        <h3>📝 New Comments</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#0073e6;color:white;">
-              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-              <th style="padding:10px;border:1px solid #ddd;">Message</th>
-              <th style="padding:10px;border:1px solid #ddd;">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${commentSection}
-          </tbody>
-        </table>
-        <hr>
-        <a href="http://${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-      <hr>
-        <p>Thank you for using Fetch Ticket System! 🎟️</p>
-      </div>
-    `;
+    const emailHtml = generateNewCommentDashboard(
+      selectedTicket,
+      commentSection
+    );
 
     // Send email
     const emailResponse = await fetch("/api/send-email", {
@@ -637,43 +572,11 @@ export default function Dashboard() {
       // Construct email HTML
       selectedTicket.status = updatedStatus;
       selectedTicket.priority = updatedPriority;
-      const emailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2 style="color: #007bff;">🎟️ Fetch Ticket Update</h2>
-        <p>Hi <strong>${selectedTicket.name}</strong>,</p>
-        <p>Your support ticket has received a new comment. Below are the details:</p>
-        <hr>
-        <p><strong>Issue ID:</strong> ${selectedTicket.issue_id}</p>
-        <p><strong>Problem Statement:</strong> ${selectedTicket.problem_statement}</p>
-        <p><strong>Priority:</strong> ${selectedTicket.priority}</p>
-        <p><strong>Status:</strong> ${selectedTicket.status}</p>
-        <p><strong>Tool ID:</strong> ${selectedTicket.tool_id}</p>
-        <p><strong>Area:</strong> ${selectedTicket.area}</p>
-        <p><strong>Supplier:</strong> ${selectedTicket.supplier}</p>
-        <h3>📝 New Comments</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#0073e6;color:white;">
-              <th style="padding:10px;border:1px solid #ddd;">Commenter</th>
-              <th style="padding:10px;border:1px solid #ddd;">Message</th>
-              <th style="padding:10px;border:1px solid #ddd;">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${commentSection}
-          </tbody>
-        </table>
-        <hr>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/submit-ticket?issue_id=${selectedTicket.issue_id}" target="_blank" rel="noopener noreferrer">
-        <button style="background-color: #007bff; color: white; padding: 10px 20px;
-                      border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
-          🔍 Open My Ticket
-        </button>
-      </a>
-      <hr>
-        <p>Thank you for using Fetch Ticket System! 🎟️</p>
-      </div>
-    `;
+
+      const emailHtml = generateUpdateTicketDashboard(
+        selectedTicket,
+        commentSection
+      );
 
       // Send email
       const emailResponse = await fetch("/api/send-email", {
